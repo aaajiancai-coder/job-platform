@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.job.mapper.AdminMapper">
+
+    <select id="countUserByDate" resultType="int">
+        SELECT COUNT(*) FROM users WHERE DATE(created_at) = #{date}
+    </select>
+
+    <select id="countCompanyByIndustry" resultType="map">
+        SELECT industry AS name, COUNT(*) AS value FROM company_profiles GROUP BY industry
+    </select>
+
+    <!-- 其他SQL... -->
+
+</mapper>

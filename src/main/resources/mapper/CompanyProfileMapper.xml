@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.job.mapper.CompanyProfileMapper">
+
+    <select id="selectCompaniesWithSimple" resultType="com.job.dto.CompanyWithSimpleDTO">
+        SELECT
+            id,
+            company_name AS companyName,
+            location,
+            industry,
+            company_size AS companySize
+        FROM company_profiles
+        <where>
+            <if test="company.companyName != null and company.companyName != ''">
+                AND company_name LIKE CONCAT('%', #{company.companyName}, '%')
+            </if>
+            <if test="company.location != null and company.location != ''">
+                AND location = #{company.location}
+            </if>
+            <if test="company.industry != null and company.industry != ''">
+                AND industry = #{company.industry}
+            </if>
+            AND verification_status = 1
+        </where>
+        ORDER BY id DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countCompaniesWithSimple" resultType="int">
+        SELECT COUNT(*)
+        FROM company_profiles
+        <where>
+            <if test="company.companyName != null and company.companyName != ''">
+                AND company_name LIKE CONCAT('%', #{company.companyName}, '%')
+            </if>
+            <if test="company.location != null and company.location != ''">
+                AND location = #{company.location}
+            </if>
+            <if test="company.industry != null and company.industry != ''">
+                AND industry = #{company.industry}
+            </if>
+            AND verification_status = 1
+        </where>
+    </select>
+
+    <!-- 企业审核分页自定义SQL -->
+    <select id="selectListRaw" resultType="com.job.entity.CompanyProfile">
+        ${sql}
+    </select>
+    <select id="countRaw" resultType="int">
+        ${sql}
+    </select>
+
+    <select id="selectByUserId" resultType="com.job.entity.CompanyProfile">
+        SELECT * FROM company_profiles WHERE user_id = #{userId} LIMIT 1
+    </select>
+
+</mapper> 
