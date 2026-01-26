@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园招聘 - 智能客服</title>
+    <!-- 引入相关样式库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <style>
+        /* 自定义样式 */
+        .chat-floating-ball {
+            position: fixed;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #409EFF 0%, #337ecc 100%);
+            box-shadow: 0 4px 20px rgba(64, 158, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 9999;
+            transition: all 0.3s ease;
+            color: white;
+            font-size: 24px;
+        }
+        
+        .chat-floating-ball:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(64, 158, 255, 0.6);
+        }
+        
+        .chat-container {
+            position: fixed;
+            right: -400px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 380px;
+            height: 600px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #e4e7ed;
+        }
+        
+        .chat-container.open {
+            right: 20px;
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chat-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .chat-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .chat-close:hover {
+            transform: rotate(90deg);
+        }
+        
+        .chat-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .chat-sidebar {
+            width: 100px;
+            background: #f5f7fa;
+            border-right: 1px solid #e4e7ed;
+            display: flex;
+            flex-direction: column;
+            padding: 10px 0;
+        }
+        
+        .chat-model-option {
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        
+        .chat-model-option.active {
+            background: #ecf5ff;
+            border-left: 3px solid #409EFF;
+            color: #409EFF;
+        }
+        
+        .chat-model-option:hover:not(.active) {
+            background: #ebeef5;
+        }
+        
+        .chat-model-icon {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .chat-model-name {
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .chat-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #fafafa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message-bubble {
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            position: relative;
+            line-height: 1.4;
+        }
+        
+        .message.bot .message-bubble {
+            background: white;
+            border: 1px solid #e4e7ed;
+            border-top-left-radius: 4px;
+        }
+        
+        .message.user .message-bubble {
+            background: #409EFF;
+            color: white;
+            border-top-right-radius: 4px;
+        }
+        
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 8px;
+            flex-shrink: 0;
+        }
+        
+        .message.bot .message-avatar {
+            background: #f5f7fa;
+            color: #409EFF;
+        }
+        
+        .message.user .message-avatar {
+            background: #ecf5ff;
+            color: #409EFF;
+            order: 1;
+        }
+        
+        .chat-input-area {
+            padding: 15px;
+            border-top: 1px solid #e4e7ed;
+            background: white;
+        }
+        
+        .chat-input {
+            width: 100%;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            padding: 10px 15px;
+            resize: none;
+            height: 60px;
+            outline: none;
+            transition: border 0.3s;
+        }
+        
+        .chat-input:focus {
+            border-color: #409EFF;
+        }
+        
+        .chat-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        
+        .send-button {
+            background: #409EFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .send-button:hover {
+            background: #66b1ff;
+        }
+        
+        .drag-boundary {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 9998;
+        }
+        
+        /* 滚动条样式 */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        /* 动画效果 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        /* 模型指示器 */
+        .model-indicator {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: #f0f0f0;
+            margin-left: 5px;
+            color: #666;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            background: white;
+            border: 1px solid #e4e7ed;
+            border-radius: 18px;
+            border-top-left-radius: 4px;
+            width: fit-content;
+            margin-bottom: 15px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #409EFF;
+            margin: 0 2px;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- 校园招聘网站内容示例 -->
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center text-blue-600 mb-8">校园招聘平台</h1>
+        <div class="grid grid-cols-3 gap-6 mb-12">
+            <!-- 招聘信息卡片示例 -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-blue-600 mb-2">前端开发工程师</h2>
+                <p class="text-gray-600 mb-4">某知名互联网公司 · 实习</p>
+                <p class="text-gray-500">负责公司前端项目开发，React/Vue框架...</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-blue-600 mb-2">后端开发工程师</h2>
+                <p class="text-gray-600 mb-4">某科技公司 · 全职</p>
+                <p class="text-gray-500">负责后端服务开发，Java/Go语言...</p>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-blue-600 mb-2">UI设计师</h2>
+                <p class="text-gray-600 mb-4">某设计公司 · 实习</p>
+                <p class="text-gray-500">负责产品界面设计，交互设计...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 智能客服聊天模块 -->
+    <div class="chat-floating-ball" id="chatBall">
+        <i class="fas fa-robot"></i>
+    </div>
+    
+    <div class="chat-container" id="chatContainer">
+        <div class="chat-header">
+            <div class="chat-title">智能招聘助手</div>
+            <button class="chat-close" id="chatClose">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="chat-body">
+            <div class="chat-sidebar">
+                <div class="chat-model-option active" data-model="functionCall">
+                    <div class="chat-model-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <div class="chat-model-name">功能对话</div>
+                </div>
+                <div class="chat-model-option" data-model="vectorSearch">
+                    <div class="chat-model-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div class="chat-model-name">知识检索</div>
+                </div>
+            </div>
+            
+            <div class="chat-content">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message bot">
+                        <div class="message-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="message-bubble">
+                            您好！我是校园招聘智能助手，可以回答您关于职位、公司、申请流程等问题。请问有什么可以帮助您的？
+                            <span class="model-indicator">功能对话</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input-area">
+                    <textarea class="chat-input" id="chatInput" placeholder="请输入您的问题..."></textarea>
+                    <div class="chat-actions">
+                        <div>
+                            <button class="text-gray-500 text-sm"><i class="far fa-smile"></i></button>
+                            <button class="text-gray-500 text-sm ml-2"><i class="fas fa-paperclip"></i></button>
+                        </div>
+                        <button class="send-button" id="sendButton">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="drag-boundary" id="dragBoundary"></div>
+
+    <script>
+        // 获取DOM元素
+        const chatBall = document.getElementById('chatBall');
+        const chatContainer = document.getElementById('chatContainer');
+        const chatClose = document.getElementById('chatClose');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const modelOptions = document.querySelectorAll('.chat-model-option');
+        const dragBoundary = document.getElementById('dragBoundary');
+        
+        // 聊天状态
+        let isChatOpen = false;
+        let currentModel = 'functionCall';
+        let isDragging = false;
+        let dragStartX, dragStartY, initialBallX, initialBallY;
+        
+        // 初始化悬浮球位置（右下角）
+        function initBallPosition() {
+            const ballSize = 60;
+            const margin = 20;
+            
+            chatBall.style.right = margin + 'px';
+            chatBall.style.bottom = margin + 'px';
+            chatBall.dataset.x = (window.innerWidth - ballSize - margin);
+            chatBall.dataset.y = (window.innerHeight - ballSize - margin);
+        }
+        
+        // 打开聊天窗口
+        function openChat() {
+            chatContainer.classList.add('open');
+            isChatOpen = true;
+            // 点击悬浮球时关闭拖动边界检测
+            dragBoundary.style.pointerEvents = 'none';
+        }
+        
+        // 关闭聊天窗口
+        function closeChat() {
+            chatContainer.classList.remove('open');
+            isChatOpen = false;
+            // 关闭聊天窗口后重新启用拖动边界检测
+            dragBoundary.style.pointerEvents = 'auto';
+        }
+        
+        // 切换聊天模型
+        function switchModel(model) {
+            currentModel = model;
+            modelOptions.forEach(option => {
+                if (option.dataset.model === model) {
+                    option.classList.add('active');
+                } else {
+                    option.classList.remove('active');
+                }
+            });
+            
+            // 添加系统消息提示模型已切换
+            addSystemMessage(`已切换到${model === 'functionCall' ? '功能对话' : '知识检索'}模式`);
+        }
+        
+        // 添加系统消息
+        function addSystemMessage(text) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message system';
+            messageElement.innerHTML = `
+                <div class="message-bubble" style="width:100%;text-align:center;background:#f0f0f0;color:#666;font-size:12px;">
+                    ${text}
+                </div>
+            `;
+            chatMessages.appendChild(messageElement);
+            scrollToBottom();
+        }
+        
+        // 添加消息到聊天窗口
+        function addMessage(content, isUser = false) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${isUser ? 'user' : 'bot'}`;
+            
+            const avatarIcon = isUser ? 'fa-user' : 'fa-robot';
+            const modelIndicator = isUser ? '' : `<span class="model-indicator">${currentModel === 'functionCall' ? '功能对话' : '知识检索'}</span>`;
+            
+            messageElement.innerHTML = `
+                <div class="message-avatar">
+                    <i class="fas ${avatarIcon}"></i>
+                </div>
+                <div class="message-bubble">
+                    ${content}
+                    ${modelIndicator}
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageElement);
+            scrollToBottom();
+        }
+        
+        // 显示输入消息
+        function sendMessage() {
+            const message = chatInput.value.trim();
+            if (message) {
+                addMessage(message, true);
+                chatInput.value = '';
+                
+                // 显示输入指示器
+                showTypingIndicator();
+                
+                // 模拟AI回复（实际应用中这里应该调用API）
+                setTimeout(() => {
+                    hideTypingIndicator();
+                    let response;
+                    
+                    if (currentModel === 'functionCall') {
+                        response = "这是功能对话模式的回复。我可以帮您查询职位信息、申请进度或解答招聘流程问题。";
+                    } else {
+                        response = "这是知识检索模式的回复。我正在从校园招聘知识库中为您查找相关信息。";
+                    }
+                    
+                    addMessage(response);
+                }, 1500);
+            }
+        }
+        
+        // 显示输入指示器
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.id = 'typingIndicator';
+            indicator.className = 'typing-indicator';
+            indicator.innerHTML = `
+                <div>智能助手输入中</div>
+                <div style="display:flex;margin-left:8px;">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            chatMessages.appendChild(indicator);
+            scrollToBottom();
+        }
+        
+        // 隐藏输入指示器
+        function hideTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+        
+        // 滚动到底部
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // 悬浮球拖动功能
+        chatBall.addEventListener('mousedown', startDrag);
+        
+        function startDrag(e) {
+            if (isChatOpen) return;
+            
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            initialBallX = parseInt(chatBall.dataset.x || chatBall.offsetLeft);
+            initialBallY = parseInt(chatBall.dataset.y || chatBall.offsetTop);
+            
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', stopDrag);
+            
+            // 开始拖动时改变样式
+            chatBall.style.opacity = '0.8';
+            e.preventDefault();
+        }
+        
+        function onDrag(e) {
+            if (!isDragging) return;
+            
+            const deltaX = e.clientX - dragStartX;
+            const deltaY = e.clientY - dragStartY;
+            
+            let newX = initialBallX + deltaX;
+            let newY = initialBallY + deltaY;
+            
+            // 限制在窗口范围内
+            const ballSize = 60;
+            const margin = 10;
+            
+            newX = Math.max(margin, Math.min(newX, window.innerWidth - ballSize - margin));
+            newY = Math.max(margin, Math.min(newY, window.innerHeight - ballSize - margin));
+            
+            // 应用新位置
+            chatBall.style.left = newX + 'px';
+            chatBall.style.top = newY + 'px';
+            chatBall.style.right = 'auto';
+            chatBall.style.bottom = 'auto';
+            
+            // 保存当前位置
+            chatBall.dataset.x = newX;
+            chatBall.dataset.y = newY;
+        }
+        
+        function stopDrag() {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            chatBall.style.opacity = '1';
+            
+            document.removeEventListener('mousemove', onDrag);
+            document.removeEventListener('mouseup', stopDrag);
+            
+            // 吸附到最近的边界
+            snapToBoundary();
+        }
+        
+        // 将悬浮球吸附到最近的窗口边界
+        function snapToBoundary() {
+            const ballSize = 60;
+            const margin = 20;
+            const x = parseInt(chatBall.dataset.x);
+            const y = parseInt(chatBall.dataset.y);
+            const centerX = x + ballSize / 2;
+            const centerY = y + ballSize / 2;
+            
+            // 计算到各边界的距离
+            const toLeft = centerX;
+            const toRight = window.innerWidth - centerX;
+            const toTop = centerY;
+            const toBottom = window.innerHeight - centerY;
+            
+            // 找到最小距离
+            const minDistance = Math.min(toLeft, toRight, toTop, toBottom);
+            
+            // 根据最小距离吸附到相应边界
+            if (minDistance === toLeft) {
+                chatBall.style.left = margin + 'px';
+                chatBall.style.top = y + 'px';
+                chatBall.style.right = 'auto';
+                chatBall.style.bottom = 'auto';
+            } else if (minDistance === toRight) {
+                chatBall.style.right = margin + 'px';
+                chatBall.style.left = 'auto';
+                chatBall.style.top = y + 'px';
+                chatBall.style.bottom = 'auto';
+            } else if (minDistance === toTop) {
+                chatBall.style.top = margin + 'px';
+                chatBall.style.left = x + 'px';
+                chatBall.style.right = 'auto';
+                chatBall.style.bottom = 'auto';
+            } else {
+                chatBall.style.bottom = margin + 'px';
+                chatBall.style.top = 'auto';
+                chatBall.style.left = x + 'px';
+                chatBall.style.right = 'auto';
+            }
+            
+            // 更新保存的位置数据
+            const rect = chatBall.getBoundingClientRect();
+            chatBall.dataset.x = rect.left;
+            chatBall.dataset.y = rect.top;
+        }
+        
+        // 窗口大小变化时调整悬浮球位置
+        window.addEventListener('resize', () => {
+            const ballSize = 60;
+            const margin = 20;
+            const currentX = parseInt(chatBall.dataset.x);
+            const currentY = parseInt(chatBall.dataset.y);
+            
+            // 如果球体超出新窗口范围，调整位置
+            if (currentX > window.innerWidth - ballSize - margin) {
+                chatBall.style.right = margin + 'px';
+                chatBall.style.left = 'auto';
+            }
+            if (currentY > window.innerHeight - ballSize - margin) {
+                chatBall.style.bottom = margin + 'px';
+                chatBall.style.top = 'auto';
+            }
+            
+            // 更新位置数据
+            const rect = chatBall.getBoundingClientRect();
+            chatBall.dataset.x = rect.left;
+            chatBall.dataset.y = rect.top;
+        });
+        
+        // 事件监听
+        chatBall.addEventListener('click', function(e) {
+            // 防止拖动误触发点击事件
+            if (isDragging) {
+                isDragging = false;
+                return;
+            }
+            openChat();
+        });
+        
+        chatClose.addEventListener('click', closeChat);
+        
+        sendButton.addEventListener('click', sendMessage);
+        
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        modelOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                switchModel(this.dataset.model);
+            });
+        });
+        
+        // 初始化
+        window.addEventListener('load', initBallPosition);
+    </script>
+</body>
+</html>
