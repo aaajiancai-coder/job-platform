@@ -1,8 +1,12 @@
 <script setup>
+import ChatWidget from '@/components/common/ChatWidget.vue'
 </script>
 
 <template>
-  <router-view></router-view>
+  <div class="app-container">
+    <router-view></router-view>
+    <ChatWidget />
+  </div>
 </template>
 
 <style>
