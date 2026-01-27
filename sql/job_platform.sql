@@ -62,8 +62,6 @@ CREATE TABLE `chat_message` (
                                 `session_id` bigint(20) NOT NULL COMMENT '关联 chat_session.id',
                                 `role` enum('user','assistant') NOT NULL COMMENT '发言角色',
                                 `content` text NOT NULL COMMENT '消息内容',
-                                `tool_invoked` varchar(100) DEFAULT NULL COMMENT '触发的工具名，如 search_jobs',
-                                `tool_args` text COMMENT '工具参数（JSON 格式字符串）',
                                 `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                 PRIMARY KEY (`id`),
                                 KEY `idx_session_id` (`session_id`),

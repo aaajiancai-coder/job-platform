@@ -10,12 +10,10 @@ import org.springframework.stereotype.Service;
 
 @Mapper
 public interface ChatSessionMapper extends BaseMapper<ChatSession> {
-    @Insert("insert into chat_session(id, user_id, session_key) value (#{userId}, #{userId}, #{userId})")
-    int insert(ChatSession chatSession);
 
     @Delete("delete from chat_session where user_id = #{userId}")
-    int delete(String userId);
+    int deleteByUserId(String userId);
 
-    @Select("select * from chat_session where user_id = #{userId}")
-    ChatSession selectByUserId(String userId);
+    @Select("select * from chat_session where session_key = #{sessionKey}")
+    ChatSession selectBySessionKey(String sessionKey);
 }

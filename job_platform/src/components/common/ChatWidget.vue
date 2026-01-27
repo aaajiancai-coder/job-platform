@@ -85,26 +85,54 @@ const sendMessage = async () => {
       mode: mode
     }
     messages.push(botMsg)
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        let chunk = decoder.decode(value, { stream: true })
+        
+        // 处理 SSE 格式 (data: chunk\n\n)
+        const lines = chunk.split('\n')
+        for (const line of lines) {
+          const trimmedLine = line.trim()
+          if (trimmedLine.startsWith('data:')) {
+            try {
+              // SSE 数据格式，提取 data: 后面的内容
+              const jsonStr = trimmedLine.substring(5).trim()
+              if (jsonStr) {
+                // 尝试解析为 JSON（ServerSentEvent 格式）
+                const eventData = JSON.parse(jsonStr)
+                if (eventData && eventData.data) {
+                  botMsg.content += eventData.data
+                }
+              }
+            } catch (e) {
+              // 如果不是 JSON，直接当作纯文本
+              const content = trimmedLine.substring(5).trim()
+              if (content) {
+                botMsg.content += content
+              }
+            }
+          } else if (trimmedLine && !trimmedLine.startsWith(':')) {
+            // 如果不是 data: 前缀也不是注释，可能是原始内容
+            if (trimmedLine) {
+              botMsg.content += trimmedLine
+            }
+          }
+        }
+        scrollToBottom()
+      }
+    } finally {
+      reader.releaseLock()
+    }
     
     isTyping.value = false
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      
-      let chunk = decoder.decode(value, { stream: true })
-      
-      // 处理 SSE 格式 (data: chunk\n\n)
-      const lines = chunk.split('\n')
-      for (const line of lines) {
-        if (line.startsWith('data:')) {
-          botMsg.content += line.substring(5)
-        } else if (line.trim() && !line.startsWith('data:')) {
-          // 如果没有 data: 前缀，可能是原始字符串
-          botMsg.content += line
-        }
-      }
-      scrollToBottom()
+    
+    // 如果没有任何内容返回，显示错误
+    if (!botMsg.content) {
+      botMsg.content = '智能助手暂时无法回复，请检查网络或稍后再试。'
     }
   } catch (error) {
     console.error('Chat error:', error)

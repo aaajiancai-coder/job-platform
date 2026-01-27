@@ -1,12 +1,13 @@
 package com.job.config;
 
-import com.job.ai.InSqlChatMemory;
-import com.job.ai.tools.CompanyTools;
+
 import com.job.constants.SystemConstants;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
@@ -22,18 +23,22 @@ public class CommonConfiguration {
         return SimpleVectorStore.builder(model).build();
     }
     @Bean
-    public ChatClient jobPlatformChatClient(ChatModel model, ChatMemory chatMemory, CompanyTools companyTools) {
+    public ChatClient jobPlatformChatClient(ChatModel model, ChatMemory chatMemory) {
         return ChatClient
                 .builder(model)
                 .defaultSystem(SystemConstants.JOB_PLATFORM_SYSTEM_PROMPT)
-                .defaultAdvisors(new SimpleLoggerAdvisor(),
-                        MessageChatMemoryAdvisor.builder(chatMemory).build())
-                .defaultTools(companyTools)
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .defaultAdvisors(new SimpleLoggerAdvisor())
                 .build();
     }
 
     @Bean
     public ChatMemory chatMemory() {
-        return new InSqlChatMemory();
+        return MessageWindowChatMemory.builder()
+                .chatMemoryRepository(new InMemoryChatMemoryRepository())
+                .maxMessages(5)
+                .build();
     }
+
+
 }
