@@ -1,6 +1,7 @@
 package com.job.config;
 
 
+import com.job.ai.InSqlChatMemory;
 import com.job.constants.SystemConstants;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -34,10 +35,7 @@ public class CommonConfiguration {
 
     @Bean
     public ChatMemory chatMemory() {
-        return MessageWindowChatMemory.builder()
-                .chatMemoryRepository(new InMemoryChatMemoryRepository())
-                .maxMessages(5)
-                .build();
+        return new  InSqlChatMemory();
     }
 
 

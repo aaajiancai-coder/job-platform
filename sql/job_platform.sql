@@ -90,10 +90,10 @@ DROP TABLE IF EXISTS `chat_session`;
 CREATE TABLE `chat_session` (
                                 `id` bigint(20) NOT NULL AUTO_INCREMENT,
                                 `user_id` bigint(20) DEFAULT NULL COMMENT '关联 user.id，若为 NULL 表示匿名访客',
-                                `session_key` varchar(64) NOT NULL COMMENT '匿名会话唯一标识（UUID）',
+                                `conversation_id` varchar(64) NOT NULL COMMENT '匿名会话唯一标识（UUID）',
                                 `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                 PRIMARY KEY (`id`),
-                                UNIQUE KEY `uk_session_key` (`session_key`),
+                                UNIQUE KEY `uk_conversation_id` (`conversation_id`),
                                 KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COMMENT='智能客服会话';
 /*!40101 SET character_set_client = @saved_cs_client */;

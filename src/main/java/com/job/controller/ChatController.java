@@ -1,5 +1,7 @@
 package com.job.controller;
 
+import com.job.ai.ChatHistoryRepository;
+import com.job.ai.ChatType;
 import lombok.SneakyThrows;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
@@ -10,6 +12,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
@@ -25,15 +28,18 @@ import java.util.List;
 @RequestMapping("/ai")
 public class ChatController {
 
-    @Resource
+    @Autowired
     private ChatClient chatClient;
 
 
+    @Autowired
+    private ChatHistoryRepository chatHistoryRepository;
 
 
     @RequestMapping(value = "/smart", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> chat(@RequestParam("prompt") String prompt,
                              @RequestParam("userId") String userId) {
+        chatHistoryRepository.save(ChatType.CHAT.getValue(), userId);
         return chatClient.prompt()
                 .user(prompt)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))

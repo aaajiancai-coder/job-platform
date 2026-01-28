@@ -11,17 +11,14 @@ import java.util.List;
 
 @Mapper
 public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
-    @Insert("insert into chat_message(session_id, role, content) " +
-            "values(#{sessionId}, #{role}, #{content})")
+    @Insert("insert into chat_message(conversation_id, role, content) " +
+            "values(#{conversationId}, #{role}, #{content})")
     void save(ChatMessage chatMessage);
 
-    @Select("select * from chat_message where session_id = #{sessionId} order by id asc")
-    List<ChatMessage> findBySessionId(Long sessionId);
+    @Select("select * from chat_message where conversation_id = #{conversationId} order by id asc")
+    List<ChatMessage> findByConversationId(String conversationId);
 
-    @Delete("delete from chat_message where session_id = #{sessionId}")
-    void deleteBySessionId(Long sessionId);
+    @Delete("delete from chat_message where conversation_id = #{conversationId}")
+    void deleteByConversationId(String conversationId);
 
-    @Select("select * from (select * from chat_message where session_id = #{sessionId} " +
-            "order by created_at desc limit #{lastN}) as t order by created_at")
-    List<ChatMessage> findBySessionIdAndLimit(Long sessionId, int lastN);
 }

@@ -10,7 +10,7 @@ public class ChatMessage {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
-    private Long sessionId;
+    private String conversationId;
     private String role; // "user" / "assistant" / "tool"
     private String content;
     private String toolCallId; // For assistant tool calls and tool responses
