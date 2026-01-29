@@ -2,6 +2,7 @@ package com.job.controller;
 
 import com.job.ai.ChatHistoryRepository;
 import com.job.ai.ChatType;
+import com.job.ai.CompanyTools;
 import lombok.SneakyThrows;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
@@ -37,17 +38,14 @@ public class ChatController {
 
 
     @RequestMapping(value = "/smart", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> chat(@RequestParam("prompt") String prompt,
+    public String chat(@RequestParam("prompt") String prompt,
                              @RequestParam("userId") String userId) {
         chatHistoryRepository.save(ChatType.CHAT.getValue(), userId);
         return chatClient.prompt()
                 .user(prompt)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
-                .stream()
-                .content()
-                .map(content -> ServerSentEvent.<String>builder()
-                        .data(content)
-                        .build());
+                .call()
+                .content();
     }
 
 //    @RequestMapping(value = "/smart", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
