@@ -13,7 +13,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.7</version>
+        <version>3.4.1</version>
         <relativePath/>
     </parent>
 
@@ -24,8 +24,8 @@
         <druid.version>1.2.8</druid.version>
         <jjwt.version>0.11.5</jjwt.version>
         <hutool.version>5.8.25</hutool.version>  <!-- 更新版本 -->
-        <spring-ai.version>1.0.0</spring-ai.version>
-        <spring-ai-alibaba.version>1.0.0.1</spring-ai-alibaba.version>
+        <spring-ai.version>1.1.0</spring-ai.version>
+        <spring-ai-alibaba.version>1.1.2.0</spring-ai-alibaba.version>
     </properties>
 
     <repositories>

@@ -38,13 +38,13 @@ public class ChatController {
 
 
     @RequestMapping(value = "/smart", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public String chat(@RequestParam("prompt") String prompt,
+    public Flux<String> chat(@RequestParam("prompt") String prompt,
                              @RequestParam("userId") String userId) {
         chatHistoryRepository.save(ChatType.CHAT.getValue(), userId);
         return chatClient.prompt()
                 .user(prompt)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
-                .call()
+                .stream()
                 .content();
     }
 

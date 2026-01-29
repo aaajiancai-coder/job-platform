@@ -30,17 +30,12 @@ public class CommonConfiguration {
         return SimpleVectorStore.builder(model).build();
     }
     @Bean
-    public ChatClient jobPlatformChatClient(ChatClient.Builder builder, ChatMemory chatMemory, ToolCallback[] toolCallbacks) {
+    public ChatClient jobPlatformChatClient(ChatClient.Builder builder, ChatMemory chatMemory, CompanyTools companyTools) {
         return builder
                 .defaultSystem(SystemConstants.JOB_PLATFORM_SYSTEM_PROMPT)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
-                .defaultToolCallbacks(toolCallbacks)
+                .defaultTools(companyTools)
                 .build();
-    }
-
-    @Bean
-    public ToolCallback[] toolCallbacks(CompanyTools companyTools) {
-        return ToolCallbacks.from(companyTools);
     }
 
     @Bean

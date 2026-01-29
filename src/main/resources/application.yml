@@ -6,11 +6,12 @@ server:
 spring:
   ai:
     # 阿里灵积
-    dash-scope:
+    dashscope:
       api-key: ${API_KEY}
       chat:
         options:
           model: qwen-max
+          parallel-tool-calls: false
       embedding:
         options:
           model: text-embedding-v4

@@ -2,6 +2,13 @@
 import { ref, reactive, onMounted, nextTick, computed } from 'vue'
 import { useUserStore } from '@/store/user'
 import { chatStream } from '@/api/ai'
+import { marked } from 'marked'
+
+// 配置 marked 选项
+marked.setOptions({
+  breaks: true,
+  gfm: true
+})
 
 const userStore = useUserStore()
 const isChatOpen = ref(false)
@@ -79,12 +86,32 @@ const sendMessage = async () => {
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
-    let botMsg = {
+    let botMsg = reactive({
       role: 'bot',
       content: '',
       mode: mode
-    }
+    })
     messages.push(botMsg)
+
+    let typewriterQueue = []
+    let isTypewriting = false
+
+    const startTypewriter = () => {
+      if (isTypewriting) return
+      isTypewriting = true
+      
+      const type = () => {
+        if (typewriterQueue.length > 0) {
+          const char = typewriterQueue.shift()
+          botMsg.content += char
+          scrollToBottom()
+          setTimeout(type, 15) // 控制打字速度
+        } else {
+          isTypewriting = false
+        }
+      }
+      type()
+    }
 
     try {
       while (true) {
@@ -96,33 +123,38 @@ const sendMessage = async () => {
         // 处理 SSE 格式 (data: chunk\n\n)
         const lines = chunk.split('\n')
         for (const line of lines) {
-          const trimmedLine = line.trim()
-          if (trimmedLine.startsWith('data:')) {
-            try {
-              // SSE 数据格式，提取 data: 后面的内容
-              const jsonStr = trimmedLine.substring(5).trim()
-              if (jsonStr) {
-                // 尝试解析为 JSON（ServerSentEvent 格式）
-                const eventData = JSON.parse(jsonStr)
-                if (eventData && eventData.data) {
-                  botMsg.content += eventData.data
-                }
-              }
-            } catch (e) {
-              // 如果不是 JSON，直接当作纯文本
-              const content = trimmedLine.substring(5).trim()
-              if (content) {
-                botMsg.content += content
-              }
+          if (line.startsWith('data:')) {
+            // 关键修复：不要直接使用 trim()，否则会删掉换行符或表格必要的空格
+            let content = line.substring(5)
+            
+            // 如果 content 以空格开头（SSE 标准通常 data: 后面跟一个空格），则去掉第一个空格
+            if (content.startsWith(' ')) {
+              content = content.substring(1)
             }
-          } else if (trimmedLine && !trimmedLine.startsWith(':')) {
-            // 如果不是 data: 前缀也不是注释，可能是原始内容
-            if (trimmedLine) {
-              botMsg.content += trimmedLine
+
+            if (content) {
+              // 尝试解析 JSON（如果是 Spring Boot 包装的简单 String，可能直接就是文字）
+              try {
+                // 如果是 JSON 字符串，解析出 data 字段
+                if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
+                  const json = JSON.parse(content)
+                  if (json.data) content = json.data
+                }
+              } catch (e) {
+                // 解析失败说明就是普通文字，保持原样
+              }
+              
+              // 将内容加入打字机队列
+              typewriterQueue.push(...content.split(''))
+              startTypewriter()
+            } else {
+              // 处理 data: 后面是空的情况（可能是换行符 chunk）
+              // Spring AI 的流式 chunk 如果是换行，data: 后面可能就是空的或只有换行
+              typewriterQueue.push('\n')
+              startTypewriter()
             }
           }
         }
-        scrollToBottom()
       }
     } finally {
       reader.releaseLock()
@@ -146,8 +178,9 @@ const sendMessage = async () => {
 }
 
 const renderMarkdown = (content) => {
-  // 简单处理换行符，如果没有 marked 库的话
-  return content.replace(/\n/g, '<br>')
+  // 预处理：如果文字后面紧跟表格（|），则强制插入换行符，防止解析失败
+  const processedContent = content.replace(/([^\n])\s*\|/g, '$1\n\n|')
+  return marked(processedContent)
 }
 
 // 拖拽逻辑
@@ -287,28 +320,30 @@ onMounted(() => {
         
         <div class="chat-content">
           <div class="chat-messages" ref="messagesRef">
-            <div 
-              v-for="(msg, index) in messages" 
-              :key="index"
-              :class="['message', msg.role]"
-            >
-              <template v-if="msg.role === 'system'">
-                <div class="message-bubble system-bubble">
-                  {{ msg.content }}
-                </div>
-              </template>
-              <template v-else>
-                <div class="message-avatar">
-                  <i :class="['fas', msg.role === 'user' ? 'fa-user' : 'fa-robot']"></i>
-                </div>
-                <div class="message-bubble">
-                  <div v-html="renderMarkdown(msg.content)"></div>
-                  <span class="model-indicator" v-if="msg.role === 'bot' && msg.mode">
-                    {{ msg.mode === 'smart' ? '功能对话' : '知识检索' }}
-                  </span>
-                </div>
-              </template>
-            </div>
+            <TransitionGroup name="msg-list">
+              <div 
+                v-for="(msg, index) in messages" 
+                :key="index"
+                :class="['message', msg.role]"
+              >
+                <template v-if="msg.role === 'system'">
+                  <div class="message-bubble system-bubble">
+                    {{ msg.content }}
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="message-avatar">
+                    <i :class="['fas', msg.role === 'user' ? 'fa-user' : 'fa-robot']"></i>
+                  </div>
+                  <div class="message-bubble">
+                    <div v-html="renderMarkdown(msg.content)"></div>
+                    <span class="model-indicator" v-if="msg.role === 'bot' && msg.mode">
+                      {{ msg.mode === 'smart' ? '功能对话' : '知识检索' }}
+                    </span>
+                  </div>
+                </template>
+              </div>
+            </TransitionGroup>
             
             <div class="typing-indicator" v-if="isTyping">
               <div>智能助手输入中</div>
@@ -370,24 +405,30 @@ onMounted(() => {
 
 .chat-container {
     position: fixed;
-    right: -400px;
+    right: -50vw;
     top: 50%;
-    transform: translateY(-50%);
-    width: 380px;
+    transform: translateY(-50%) scale(0.9);
+    width: 45vw;
+    min-width: 380px;
     height: 600px;
     background: white;
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     z-index: 10000;
-    transition: right 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     border: 1px solid #e4e7ed;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .chat-container.open {
     right: 20px;
+    transform: translateY(-50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .chat-header {
@@ -488,12 +529,76 @@ onMounted(() => {
 }
 
 .message-bubble {
-    max-width: 70%;
-    padding: 10px 15px;
-    border-radius: 18px;
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 12px;
     position: relative;
-    line-height: 1.4;
+    line-height: 1.5;
     word-break: break-word;
+}
+
+/* 消息内容内部间距优化 */
+:deep(p) {
+    margin: 4px 0;
+}
+
+:deep(p:first-child) {
+    margin-top: 0;
+}
+
+:deep(p:last-child) {
+    margin-bottom: 0;
+}
+
+/* Markdown 表格样式 */
+:deep(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 12px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #ebeef5;
+    box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05);
+}
+
+:deep(.message-bubble) {
+    overflow-x: auto;
+}
+
+:deep(th), :deep(td) {
+    border: 1px solid #ebeef5;
+    padding: 12px 10px;
+    text-align: left;
+    min-width: 100px;
+}
+
+:deep(th) {
+    background-color: #f5f7fa;
+    color: #333;
+    font-weight: 600;
+}
+
+:deep(tr:nth-child(even)) {
+    background-color: #fafafa;
+}
+
+:deep(tr:hover) {
+    background-color: #f0f9eb;
+}
+
+:deep(strong) {
+    color: #409EFF;
+    font-weight: 600;
+}
+
+:deep(ul), :deep(ol) {
+    padding-left: 20px;
+    margin: 8px 0;
+}
+
+:deep(li) {
+    margin-bottom: 4px;
 }
 
 .system-bubble {
@@ -650,8 +755,43 @@ onMounted(() => {
 .chat-messages::-webkit-scrollbar-track {
     background: #f1f1f1;
 }
-.chat-messages::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 3px;
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 消息动画 */
+.msg-list-enter-active,
+.msg-list-leave-active {
+  transition: all 0.3s ease;
+}
+.msg-list-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.msg-list-user-enter-from {
+  transform: translateX(20px);
+}
+.msg-list-bot-enter-from {
+  transform: translateX(-20px);
+}
+
+.message {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: flex-start;
+    animation: fadeIn 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-model-option:active {
+    transform: scale(0.95);
+}
+
+.send-button:active:not(:disabled) {
+    transform: scale(0.95);
 }
 </style>
