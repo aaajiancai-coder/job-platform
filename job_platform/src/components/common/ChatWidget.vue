@@ -178,9 +178,9 @@ const sendMessage = async () => {
 }
 
 const renderMarkdown = (content) => {
-  // 预处理：如果文字后面紧跟表格（|），则强制插入换行符，防止解析失败
-  const processedContent = content.replace(/([^\n])\s*\|/g, '$1\n\n|')
-  return marked(processedContent)
+  if (!content) return ''
+  // 仅保留最基础的 marked 渲染以处理换行，不再做任何符号修复
+  return marked(content)
 }
 
 // 拖拽逻辑
@@ -530,16 +530,16 @@ onMounted(() => {
 
 .message-bubble {
     max-width: 85%;
-    padding: 8px 12px;
-    border-radius: 12px;
+    padding: 6px 10px;
+    border-radius: 10px;
     position: relative;
-    line-height: 1.5;
+    line-height: 1.4;
     word-break: break-word;
 }
 
-/* 消息内容内部间距优化 */
+/* 消息内容内部间距极致优化 */
 :deep(p) {
-    margin: 4px 0;
+    margin: 0;
 }
 
 :deep(p:first-child) {
@@ -550,14 +550,33 @@ onMounted(() => {
     margin-bottom: 0;
 }
 
-/* Markdown 表格样式 */
+/* Markdown 元素样式简化 */
+:deep(h3) {
+    margin: 8px 0 4px 0;
+    color: inherit;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+:deep(hr) {
+    border: none;
+    border-top: 1px solid #eee;
+    margin: 8px 0;
+}
+
+:deep(strong) {
+    color: inherit;
+    font-weight: 600;
+}
+
+/* Markdown 表格样式 (保留兼容) */
 :deep(table) {
     width: 100%;
     border-collapse: collapse;
-    margin: 10px 0;
+    margin: 8px 0;
     font-size: 12px;
     background: #fff;
-    border-radius: 8px;
+    border-radius: 6px;
     border: 1px solid #ebeef5;
     box-shadow: 0 2px 12px 0 rgba(0,0,0,0.05);
 }
