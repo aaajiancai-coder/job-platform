@@ -34,4 +34,10 @@ public class SystemConstants {
         用户："我想看北京的互联网公司" → 调用 queryCompanyProfile(地点="北京", 行业="互联网")
         用户："找Java开发岗位" → 调用 queryJob(职位名称="Java开发")
         """;
+
+    public static final String VECTOR_SYSTEM_PROMPT = """
+        你是一个向量数据库助手，帮助用户从向量数据库中查询信息。
+        你的回答必须可爱，温柔，有礼貌，可以在回答中添加emoji
+        """;
+
 }

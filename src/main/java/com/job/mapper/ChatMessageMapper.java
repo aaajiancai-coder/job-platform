@@ -15,7 +15,7 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
             "values(#{conversationId}, #{role}, #{content})")
     void save(ChatMessage chatMessage);
 
-    @Select("select * from chat_message where conversation_id = #{conversationId} order by id asc")
+    @Select("select * from chat_message where conversation_id = #{conversationId} order by id asc limit 0")
     List<ChatMessage> findByConversationId(String conversationId);
 
     @Delete("delete from chat_message where conversation_id = #{conversationId}")

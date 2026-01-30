@@ -2,7 +2,10 @@ package com.job.ai;
 
 import com.job.utils.VectorDistanceUtils;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import java.util.Arrays;
@@ -13,6 +16,8 @@ public class EmbeddingModelTests {
 
     @Autowired
     private EmbeddingModel embeddingModel;
+    @Autowired
+    private VectorStore vectorStore;
 
     /**
      * 基础向量化测试
@@ -152,5 +157,26 @@ public class EmbeddingModelTests {
             System.err.println("❌ 嵌入模型错误: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    @Test
+    public void testVectorStore() {
+        String text = "大三暑假干什么";
+        SearchRequest request = SearchRequest.builder()
+                .query(text) // 搜索内容
+                .topK(1)  // 返回的相似文档数量
+                .similarityThreshold(0.6) // 相似度阈值
+                .build();
+        List<Document> docs = vectorStore.similaritySearch(request);
+        if (docs == null) {
+            System.out.println("没有搜索到任何内容");
+            return;
+        }
+        for (Document doc : docs) {
+            System.out.println(doc.getId());
+            System.out.println(doc.getScore());
+            System.out.println(doc.getText());
+        }
+
     }
 }

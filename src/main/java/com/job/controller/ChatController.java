@@ -12,8 +12,10 @@ import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.tika.TikaDocumentReader;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
@@ -30,109 +32,83 @@ import java.util.List;
 public class ChatController {
 
     @Autowired
-    private ChatClient chatClient;
-
-
+    private VectorStore vectorStore;
     @Autowired
-    private ChatHistoryRepository chatHistoryRepository;
+    @Qualifier("jobPlatformChatClient")
+    private ChatClient jobPlatformChatClient;
+    @Autowired
+    @Qualifier("vectorChatClient")
+    private ChatClient vectorChatClient;
+    @Autowired
+    private ChatHistoryRepository inSqlChatHistoryRepository;
 
 
     @RequestMapping(value = "/smart", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> chat(@RequestParam("prompt") String prompt,
                              @RequestParam("userId") String userId) {
-        chatHistoryRepository.save(ChatType.CHAT.getValue(), userId);
-        return chatClient.prompt()
+        inSqlChatHistoryRepository.save(ChatType.CHAT.getValue(), userId);
+        return jobPlatformChatClient.prompt()
                 .user(prompt)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
                 .stream()
                 .content();
     }
 
-//    @RequestMapping(value = "/smart", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-//    public Flux<String> smart(@RequestParam("prompt") String prompt,
-//                             @RequestParam("userId") String userId) {
-//        if ("guest".equals(userId)) {
-//            return Flux.just("data:抱歉，游客身份暂无对话权限，请登录后再试哦！\n\n");
-//        }
-//        inSqlChatHistoryRepository.save(userId);
-//        return jobPlatformChatClient.prompt()
-//                .user(prompt)
-//                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
-//                .stream()
-//                .content();
-//    }
-//
-//    @RequestMapping(value = "/store", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-//    public Flux<String> store(@RequestParam("prompt") String prompt,
-//                             @RequestParam("userId") String userId) {
-//        return jobPlatformChatClient.prompt()
-//                .user(prompt)
-//                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
-//                .stream()
-//                .content();
-//    }
-//
-//    /**
-//     * 嵌入文件
-//     *
-//     * @param file 待嵌入的文件
-//     * @return 是否成功
-//     */
-//    @SneakyThrows
-//    @PostMapping("embedding")
-//    public Boolean embedding(@RequestParam MultipartFile file) {
-//        // 从IO流中读取文件
-//        TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(new InputStreamResource(file.getInputStream()));
-//        // 将文本内容划分成更小的块
-//        List<Document> splitDocuments = new TokenTextSplitter()
-//                .apply(tikaDocumentReader.read());
-//        // 存入向量数据库，这个过程会自动调用embeddingModel,将文本变成向量再存入。
-//        vectorStore.add(splitDocuments);
-//        return true;
-//    }
-//
-//
-//    /**
-//     * 查询向量数据库
-//     *
-//     * @param query 用户的提问
-//     * @return 匹配到的文档
-//     */
-//
-//    @GetMapping("query")
-//    public List<Document> query(@RequestParam String query) {
-//        return vectorStore.similaritySearch(query);
-//    }
-//
-//
-//    /**
-//     * 从向量数据库中查找文档，并将查询的文档作为上下文回答。
-//     *
-//     * @param prompt 用户的提问
-//     * @return SSE流响应
-//     */
-//    @GetMapping(value = "/database", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-//    public Flux<String> chatStreamWithDatabase(@RequestParam String prompt,
-//                                               @RequestParam String userId) {
-//        if ("guest".equals(userId)) {
-//            return Flux.just("data:抱歉，游客身份暂无知识检索权限，请登录后再试哦！\n\n");
-//        }
-//        // question_answer_context是一个占位符，会替换成向量数据库中查询到的文档。QuestionAnswerAdvisor会替换。
-//        String promptWithContext = """
-//                {query}
-//                下面是上下文信息
-//                ---------------------
-//                {question_answer_context}
-//                ---------------------
-//                给定的上下文和提供的历史信息，而不是事先的知识，回复用户的意见。如果答案不在上下文中，告诉用户你不能回答这个问题。
-//                """;
-//        inSqlChatHistoryRepository.save(userId);
-//        return jobPlatformChatClient.prompt()
-//                .user(prompt)
-//                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
-//                .advisors(QuestionAnswerAdvisor.builder(vectorStore)
-//                        .promptTemplate(new PromptTemplate(promptWithContext)).build())
-//                .stream()
-//                .content();
-//    }
+
+    /**
+     * 嵌入文件
+     *
+     * @param file 待嵌入的文件
+     * @return 是否成功
+     */
+    @SneakyThrows
+    @PostMapping("embedding")
+    public Boolean embedding(@RequestParam MultipartFile file) {
+        // 从IO流中读取文件
+        TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(new InputStreamResource(file.getInputStream()));
+        // 将文本内容划分成更小的块
+        // 配置更小的切片参数
+        TokenTextSplitter splitter = TokenTextSplitter.builder()
+                .withChunkSize(200)        // 每个分块的token数量目标值（默认800）
+                .withMinChunkSizeChars(50) // 每个分块的最小字符数（默认350）
+                .withMaxNumChunks(50)      // 最大分块数量限制
+                .withMinChunkLengthToEmbed(10) // 要包含的分块最小长度（默认5）
+                .build();
+        List<Document> splitDocuments = splitter.apply(tikaDocumentReader.read());
+        vectorStore.add(splitDocuments);
+        return true;
+    }
+
+
+    /**
+     * 从向量数据库中查找文档，并将查询的文档作为上下文回答。
+     *
+     * @param prompt 用户的提问
+     * @return SSE流响应
+     */
+    @GetMapping(value = "database", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> chatStreamWithDatabase(@RequestParam String prompt,
+                                               @RequestParam String userId) {
+        if ("guest".equals(userId)) {
+            return Flux.just("data:抱歉，游客身份暂无知识检索权限，请登录后再试哦！\n\n");
+        }
+        // question_answer_context是一个占位符，会替换成向量数据库中查询到的文档。QuestionAnswerAdvisor会替换。
+        String promptWithContext = """
+                {query}
+                下面是上下文信息
+                ---------------------
+                {question_answer_context}
+                ---------------------
+                给定的上下文和提供的历史信息，而不是事先的知识，回复用户的意见。如果答案不在上下文中，告诉用户你不能回答这个问题。
+                """;
+        inSqlChatHistoryRepository.save(ChatType.CHAT.getValue(), userId);
+        return vectorChatClient.prompt()
+                .user(prompt)
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
+                .advisors(QuestionAnswerAdvisor.builder(vectorStore)
+                        .searchRequest(SearchRequest.builder().similarityThreshold(0.8d).topK(1).build())
+                        .promptTemplate(new PromptTemplate(promptWithContext)).build())
+                .stream()
+                .content();
+    }
 }

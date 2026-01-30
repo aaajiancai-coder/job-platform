@@ -14,7 +14,14 @@ spring:
           parallel-tool-calls: false
       embedding:
         options:
-          model: text-embedding-v4
+          model: text-embedding-v3
+    #向量数据库
+    vectorstore:
+      redis:
+        index: spring_ai_index # 向量数据库索引名称
+        initialize-schema: true # 初始化向量数据库
+        prefix: "doc:" # 向量数据库key前缀
+
   #    openai:
 #      base-url: https://dashscope.aliyuncs.com/compatible-mode
 #      api-key: ${API_KEY}
@@ -52,6 +59,11 @@ spring:
           slow-sql-millis: 2000
         wall:
           enabled: true
+    #redis连接
+  data:
+    redis:
+      host: 192.168.88.100
+      port: 6379
 
 # MyBatis Plus配置
 mybatis-plus:

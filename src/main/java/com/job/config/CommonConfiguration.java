@@ -8,6 +8,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
@@ -26,15 +27,20 @@ import java.util.Arrays;
 @Configuration
 public class CommonConfiguration {
     @Bean
-    public VectorStore vectorStore(EmbeddingModel model) {
-        return SimpleVectorStore.builder(model).build();
-    }
-    @Bean
     public ChatClient jobPlatformChatClient(ChatClient.Builder builder, ChatMemory chatMemory, CompanyTools companyTools) {
         return builder
                 .defaultSystem(SystemConstants.JOB_PLATFORM_SYSTEM_PROMPT)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .defaultTools(companyTools)
+                .build();
+    }
+
+    @Bean
+    public ChatClient vectorChatClient(ChatClient.Builder builder, ChatMemory chatMemory) {
+        return builder
+                .defaultSystem(SystemConstants.VECTOR_SYSTEM_PROMPT)
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .defaultAdvisors()
                 .build();
     }
 
