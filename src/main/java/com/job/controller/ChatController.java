@@ -55,29 +55,7 @@ public class ChatController {
     }
 
 
-    /**
-     * 嵌入文件
-     *
-     * @param file 待嵌入的文件
-     * @return 是否成功
-     */
-    @SneakyThrows
-    @PostMapping("embedding")
-    public Boolean embedding(@RequestParam MultipartFile file) {
-        // 从IO流中读取文件
-        TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(new InputStreamResource(file.getInputStream()));
-        // 将文本内容划分成更小的块
-        // 配置更小的切片参数
-        TokenTextSplitter splitter = TokenTextSplitter.builder()
-                .withChunkSize(200)        // 每个分块的token数量目标值（默认800）
-                .withMinChunkSizeChars(50) // 每个分块的最小字符数（默认350）
-                .withMaxNumChunks(50)      // 最大分块数量限制
-                .withMinChunkLengthToEmbed(10) // 要包含的分块最小长度（默认5）
-                .build();
-        List<Document> splitDocuments = splitter.apply(tikaDocumentReader.read());
-        vectorStore.add(splitDocuments);
-        return true;
-    }
+
 
 
     /**
