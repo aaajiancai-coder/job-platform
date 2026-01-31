@@ -45,7 +45,8 @@ const routes = [
             { path: 'dashboard', component: () => import('@/pages/admin/Dashboard.vue') },
             { path: 'users', component: () => import('@/pages/admin/UserManage.vue') },
             { path: 'companies', component: () => import('@/pages/admin/CompanyAudit.vue') },
-            { path: 'statistics', component: () => import('@/pages/admin/DataStatistics.vue') }
+            { path: 'statistics', component: () => import('@/pages/admin/DataStatistics.vue') },
+            { path: 'rag-files', component: () => import('@/pages/admin/RagFileManager.vue') }
         ]
     },
 

@@ -33,6 +33,7 @@
         <el-button type="primary" @click="goTo('users')">用户管理</el-button>
         <el-button @click="goTo('companies')">企业审核</el-button>
         <el-button @click="goTo('statistics')">数据统计</el-button>
+        <el-button @click="goTo('rag-files')">知识库管理</el-button>
       </div>
       <div class="announcement">
         <el-alert title="平台公告：请及时处理企业审核与用户反馈。" type="info" show-icon />
@@ -82,6 +83,7 @@ function goTo(type) {
   if (type === 'users') router.push('/admin/users')
   else if (type === 'companies') router.push('/admin/companies')
   else if (type === 'statistics') router.push('/admin/statistics')
+  else if (type === 'rag-files') router.push('/admin/rag-files')
 }
 
 onMounted(() => {

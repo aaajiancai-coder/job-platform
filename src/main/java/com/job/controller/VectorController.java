@@ -1,17 +1,11 @@
 package com.job.controller;
 
 import com.job.common.api.ApiResult;
+import com.job.entity.RagFile;
+import com.job.service.RagFileService;
 import lombok.SneakyThrows;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.reader.tika.TikaDocumentReader;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -21,30 +15,70 @@ import java.util.List;
 public class VectorController {
 
     @Autowired
-    private VectorStore vectorStore;
+    private RagFileService ragFileService;
 
     /**
-     * 嵌入文件
+     * 上传文件并嵌入向量数据库
      *
      * @param file 待嵌入的文件
+     * @param userId 上传用户ID
      * @return 是否成功
      */
     @SneakyThrows
     @PostMapping("embedding")
-    public ApiResult embedding(@RequestParam MultipartFile file) {
-        // 从IO流中读取文件
-        TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(new InputStreamResource(file.getInputStream()));
-        // 将文本内容划分成更小的块
-        // 配置更小的切片参数
-        TokenTextSplitter splitter = TokenTextSplitter.builder()
-                .withChunkSize(200)        // 每个分块的token数量目标值（默认800）
-                .withMinChunkSizeChars(50) // 每个分块的最小字符数（默认350）
-                .withMaxNumChunks(50)      // 最大分块数量限制
-                .withMinChunkLengthToEmbed(10) // 要包含的分块最小长度（默认5）
-                .build();
-        List<Document> splitDocuments = splitter.apply(tikaDocumentReader.read());
-        vectorStore.add(splitDocuments);
-        return ApiResult.success();
+    public ApiResult embedding(@RequestParam MultipartFile file, 
+                              @RequestParam Long userId) {
+        boolean result = ragFileService.uploadAndEmbedFile(file, userId);
+        if (result) {
+            return ApiResult.success("文件上传并嵌入成功");
+        } else {
+            return ApiResult.failed("文件上传失败");
+        }
     }
 
+    /**
+     * 删除文件及其向量数据
+     *
+     * @param fileId 文件ID
+     * @param userId 用户ID
+     * @return 是否成功
+     */
+    @DeleteMapping("file/{fileId}")
+    public ApiResult deleteFile(@PathVariable Long fileId, 
+                               @RequestParam Long userId) {
+        try {
+            boolean result = ragFileService.deleteFile(fileId, userId);
+            if (result) {
+                return ApiResult.success("文件删除成功");
+            } else {
+                return ApiResult.failed("文件删除失败");
+            }
+        } catch (Exception e) {
+            return ApiResult.failed(e.getMessage());
+        }
+    }
+
+    /**
+     * 获取用户上传的文件列表
+     *
+     * @param userId 用户ID
+     * @return 文件列表
+     */
+    @GetMapping("files")
+    public ApiResult getUserFiles(@RequestParam Long userId) {
+        List<RagFile> files = ragFileService.getUserFiles(userId);
+        return ApiResult.success(files);
+    }
+
+    /**
+     * 检查文件类型是否支持
+     *
+     * @param fileName 文件名
+     * @return 是否支持
+     */
+    @GetMapping("check-file-type")
+    public ApiResult checkFileType(@RequestParam String fileName) {
+        boolean supported = ragFileService.isSupportedFileType(fileName);
+        return ApiResult.success(supported);
+    }
 }

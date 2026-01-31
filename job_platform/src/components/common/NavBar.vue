@@ -27,6 +27,7 @@
       <el-menu-item v-if="userStore.user?.role === 'admin'" index="/admin/users">用户管理</el-menu-item>
       <el-menu-item v-if="userStore.user?.role === 'admin'" index="/admin/companies">企业审核</el-menu-item>
       <el-menu-item v-if="userStore.user?.role === 'admin'" index="/admin/statistics">数据统计</el-menu-item>
+      <el-menu-item v-if="userStore.user?.role === 'admin'" index="/admin/rag-files">知识库管理</el-menu-item>
     </el-menu>
     <div v-if="!userStore.user" class="auth-buttons">
       <el-button type="primary" plain @click="router.push('/login')">登录</el-button>
