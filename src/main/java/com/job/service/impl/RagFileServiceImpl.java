@@ -52,7 +52,7 @@ public class RagFileServiceImpl extends ServiceImpl<RagFileMapper, RagFile> impl
         // 生成存储文件名
         String originalFilename = file.getOriginalFilename();
         String fileExtension = FileUtils.getFileExtension(originalFilename);
-        String storedFilename = UUID.randomUUID().toString() + fileExtension;
+        String storedFilename = UUID.randomUUID() + fileExtension;
         String filePath = uploadDir + File.separator + storedFilename;
 
         // 保存文件到本地 - 使用流的方式避免Tomcat临时目录问题
@@ -82,7 +82,7 @@ public class RagFileServiceImpl extends ServiceImpl<RagFileMapper, RagFile> impl
 
         // 为每个文档片段添加元数据和可识别的ID，便于后续删除
         List<Document> updatedDocuments = new java.util.ArrayList<>();
-        String baseDocId = "file_" + UUID.randomUUID().toString(); // 为整个文件生成基础ID
+        String baseDocId = "file_" + UUID.randomUUID(); // 为整个文件生成基础ID
         for (int i = 0; i < splitDocuments.size(); i++) {
             Document doc = splitDocuments.get(i);
             String docId = baseDocId + "_part_" + i; // 为每个分片生成唯一ID
