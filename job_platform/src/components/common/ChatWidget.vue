@@ -75,7 +75,15 @@ const sendMessage = async () => {
 
   try {
     const response = await chatStream(userPrompt, userId, mode)
-    if (!response.ok) throw new Error('Network response was not ok')
+    if (!response.ok) {
+      // 处理错误响应 如果是403
+      if (response.status === 403) {
+        throw new Error('Unauthorized')
+      } else {
+        throw new Error('服务器错误')
+      }
+      return
+    }
 
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
@@ -144,13 +152,23 @@ const sendMessage = async () => {
       botMsg.content = '智能助手暂时无法回复，请检查网络或稍后再试。'
     }
   } catch (error) {
-    console.error('Chat error:', error)
+    // console.error(error.message)
+    //如果是403需要提示用户登录
+    isTyping.value = false
+    if (error.message === 'Unauthorized') {
+      messages.push({
+        role: 'bot',
+        content: '您尚未登录，请先登录。',
+        mode: mode
+      })
+      return
+    }
     messages.push({
       role: 'bot',
       content: '抱歉，服务出现了一些问题，请稍后再试。',
       mode: mode
     })
-    isTyping.value = false
+
   }
 }
 

@@ -42,7 +42,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/register", "/auth/login", "/common/**", "/ai/**").permitAll()
+                        .requestMatchers("/auth/register", "/auth/login", "/common/**").permitAll()
                         .requestMatchers("/company/{id}").authenticated() // 注意：路径变量匹配需谨慎，见下方说明
                         .requestMatchers("/jobs/{id}").authenticated()
                         .requestMatchers("/notification/**").authenticated()
