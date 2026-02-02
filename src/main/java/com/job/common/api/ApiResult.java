@@ -32,6 +32,16 @@ public class ApiResult<T> implements Serializable {
         return new ApiResult<>(SUCCESS_CODE, message, data);
     }
 
+    public static <T> ApiResult<T> error(String message) {
+        return new ApiResult<>(ERROR_CODE, message, null);
+    }
+
+    public static <T> ApiResult<T> error(int code, String message) {
+        return new ApiResult<>(code, message, null);
+    }
+
+
+
     public static <T> ApiResult<T> failed() {
         return new ApiResult<>(ERROR_CODE, ERROR_MESSAGE, null);
     }

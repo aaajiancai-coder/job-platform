@@ -46,6 +46,7 @@ public class SecurityConfig {
                         .requestMatchers("/company/{id}").authenticated() // 注意：路径变量匹配需谨慎，见下方说明
                         .requestMatchers("/jobs/{id}").authenticated()
                         .requestMatchers("/notification/**").authenticated()
+                        .requestMatchers("/user/**").authenticated()
                         .requestMatchers("/admin/**").hasRole("admin")
                         .requestMatchers("/company/**").hasRole("company")
                         .requestMatchers("/student/**").hasRole("student")
