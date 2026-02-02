@@ -1,27 +1,36 @@
 package com.job.utils;
 
-import jakarta.servlet.http.HttpServletRequest;
+import com.job.config.UploadProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
-import java.io.*;
-import java.nio.file.*;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.UUID;
 
 /**
- * 头像文件管理工具类
+ * 头像文件管理工具类（基于配置类版本）
  */
+@Component
+@EnableConfigurationProperties(UploadProperties.class)
 public class AvatarFileUtil {
 
-    // 头像存储根目录
-    private static final String AVATAR_BASE_DIR = "/uploads/avatars/";
-    // 允许的文件类型
-    private static final String[] ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif"};
-    // 最大文件大小：2MB
-    private static final long MAX_FILE_SIZE = 2 * 1024 * 1024;
+    private final UploadProperties uploadProperties;
+
+    @Autowired
+    public AvatarFileUtil(UploadProperties uploadProperties) {
+        this.uploadProperties = uploadProperties;
+    }
 
     /**
      * 上传头像文件
      */
-    public static String uploadAvatar(MultipartFile file, HttpServletRequest request) throws IOException {
+    public String uploadAvatar(MultipartFile file) throws IOException {
         // 验证文件
         validateFile(file);
 
@@ -31,8 +40,7 @@ public class AvatarFileUtil {
         String newFilename = UUID.randomUUID() + fileExtension;
 
         // 创建存储目录
-        String uploadDir = getUploadRealPath(request);
-        Path uploadPath = Paths.get(uploadDir);
+        Path uploadPath = Paths.get(uploadProperties.getBaseUrl(), uploadProperties.getAvatarSubDir());
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
@@ -41,23 +49,20 @@ public class AvatarFileUtil {
         Path filePath = uploadPath.resolve(newFilename);
         file.transferTo(filePath.toFile());
 
-        // 返回相对路径
-        return AVATAR_BASE_DIR + newFilename;
+        // 返回相对路径或文件名
+        return newFilename;
     }
 
     /**
      * 删除头像文件
      */
-    public static boolean deleteAvatar(String avatarPath, HttpServletRequest request) {
-        if (avatarPath == null || avatarPath.trim().isEmpty()) {
+    public boolean deleteAvatar(String filename) {
+        if (filename == null || filename.trim().isEmpty()) {
             return true;
         }
 
         try {
-            String realPath = getUploadRealPath(request);
-            String filename = extractFilename(avatarPath);
-            Path filePath = Paths.get(realPath, filename);
-
+            Path filePath = Paths.get(uploadProperties.getBaseUrl(), uploadProperties.getAvatarSubDir(), filename);
             return Files.deleteIfExists(filePath);
         } catch (IOException e) {
             System.err.println("删除头像文件失败: " + e.getMessage());
@@ -68,65 +73,52 @@ public class AvatarFileUtil {
     /**
      * 获取头像文件
      */
-    public static File getAvatarFile(String avatarPath, HttpServletRequest request) {
-        if (avatarPath == null || avatarPath.trim().isEmpty()) {
-            return null;
+    public File getAvatarFile(String filename) {
+        if (filename == null || filename.trim().isEmpty()) {
+            return getDefaultAvatarFile();
         }
 
-        String realPath = getUploadRealPath(request);
-        String filename = extractFilename(avatarPath);
-        Path filePath = Paths.get(realPath, filename);
-
-        return filePath.toFile();
+        Path filePath = Paths.get(uploadProperties.getBaseUrl(), uploadProperties.getAvatarSubDir(), filename);
+        File avatarFile = filePath.toFile();
+        return avatarFile.exists() ? avatarFile : getDefaultAvatarFile();
     }
 
     /**
      * 验证文件合法性
      */
-    private static void validateFile(MultipartFile file) {
+    private void validateFile(MultipartFile file) {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("文件不能为空");
         }
 
-        if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("文件大小不能超过2MB");
+        // 使用配置中的文件大小限制
+        if (uploadProperties.getMaxSize() != null &&
+                file.getSize() > uploadProperties.getMaxSize()) {
+            throw new IllegalArgumentException("文件大小不能超过配置限制");
         }
 
         String originalFilename = file.getOriginalFilename();
         String fileExtension = getFileExtension(originalFilename).toLowerCase();
 
-        boolean allowed = false;
-        for (String ext : ALLOWED_EXTENSIONS) {
-            if (ext.equalsIgnoreCase(fileExtension)) {
-                allowed = true;
-                break;
+        // 使用配置中的允许类型
+        if (uploadProperties.getAllowTypes() != null &&
+                !uploadProperties.getAllowTypes().isEmpty()) {
+            boolean allowed = uploadProperties.getAllowTypes().stream()
+                    .anyMatch(type -> type.equalsIgnoreCase(fileExtension));
+            if (!allowed) {
+                throw new IllegalArgumentException("文件类型不支持，允许的类型: " +
+                        String.join(", ", uploadProperties.getAllowTypes()));
             }
         }
-
-        if (!allowed) {
-            throw new IllegalArgumentException("只支持JPG、JPEG、PNG、GIF格式的图片");
-        }
     }
 
-    private static String getFileExtension(String filename) {
-        return filename.substring(filename.lastIndexOf("."));
+    private String getFileExtension(String filename) {
+        return FileUtils.getFileExtension(filename);
     }
 
-    private static String getUploadRealPath(HttpServletRequest request) {
-        return request.getServletContext().getRealPath(AVATAR_BASE_DIR);
-    }
-
-    private static String extractFilename(String avatarPath) {
-        return avatarPath.substring(avatarPath.lastIndexOf("/") + 1);
-    }
-
-    /**
-     * 生成缩略图路径
-     */
-    public static String generateThumbnailPath(String avatarPath) {
-        if (avatarPath == null) return null;
-        int dotIndex = avatarPath.lastIndexOf(".");
-        if (dotIndex == -1) return avatarPath + "_thumb";
-        return avatarPath.substring(0, dotIndex) + "_thumb" + avatarPath.substring(dotIndex);
+    public File getDefaultAvatarFile() {
+        // 可以配置默认头像路径
+        Path defaultPath = Paths.get(uploadProperties.getBaseUrl(), uploadProperties.getAvatarSubDir(), uploadProperties.getDefaultAvatar());
+        return defaultPath.toFile();
     }
 }

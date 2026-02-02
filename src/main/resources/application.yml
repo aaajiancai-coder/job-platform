@@ -91,3 +91,14 @@ logging:
     com.job.mapper: debug
     org.springframework.ai: debug
     org.springframework.web.reactive.function.client.ExchangeFunctions: TRACE
+
+upload:
+  base-url: "D:/job_platform/uploads/"
+  max-size: 2097152  # 2MB
+  allow-types:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
+    - ".gif"
+  avatar-sub-dir: "avatars/"
+  default-avatar: "default.jpg"

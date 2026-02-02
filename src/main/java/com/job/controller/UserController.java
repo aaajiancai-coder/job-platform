@@ -30,7 +30,7 @@ public class UserController {
     public ApiResult<String> uploadAvatar(
             @PathVariable Long userId,
             @RequestParam("avatar") MultipartFile file,
-            HttpServletRequest request) {
+            HttpServletRequest request) throws IOException {
         boolean result = userService.updateUserAvatar(userId, file, request);
         return result ? ApiResult.success("头像上传成功") : ApiResult.error("头像上传失败");
 
