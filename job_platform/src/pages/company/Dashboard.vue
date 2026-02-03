@@ -6,20 +6,31 @@
         <div class="card-header">
           <h2>企业管理平台</h2>
         </div>
-        <!-- 企业基本信息：头像悬浮显示上传图标 -->
+        <!-- 企业基本信息：使用 el-upload 实现头像上传/显示 -->
         <div class="company-info">
-          <!-- 头像容器：悬浮显示上传按钮 -->
-          <div class="avatar-container" @mouseenter="showAvatarUpload = true" @mouseleave="showAvatarUpload = false">
-            <!-- 核心修改：移除el-avatar默认灰色背景，直接显示头像内容 -->
+          <!-- 核心改造：使用 el-upload 组件实现头像功能 -->
+          <div class="avatar-container">
+            <el-upload
+                class="avatar-uploader"
+                :action="''"
+            :show-file-list="false"
+            :before-upload="beforeAvatarUpload"
+            :on-success="handleAvatarSuccess"
+            :on-error="handleAvatarError"
+            accept="image/jpeg,image/png"
+            >
+            <!-- 头像显示：如果已有头像显示 avatarUrl，否则显示默认占位（可选） -->
             <img
+                v-if="avatarUrl"
                 class="company-avatar"
                 :src="avatarUrl"
                 alt="企业头像"
             />
-            <!-- 上传图标：仅悬浮时显示，覆盖在头像上 -->
-            <div class="avatar-upload-trigger" v-if="showAvatarUpload" @click="openUploadDialog">
+            <!-- 上传图标/默认占位：无头像时显示，有头像时悬浮显示 -->
+            <div class="avatar-upload-mask" v-else>
               <el-icon class="upload-icon"><Camera /></el-icon>
             </div>
+            </el-upload>
           </div>
           <div class="info-main">
             <div class="company-name">{{ companyInfo.companyName }}</div>
@@ -30,7 +41,7 @@
             </div>
           </div>
         </div>
-        <!-- 统计数据 -->
+        <!-- 以下内容保持不变 -->
         <el-row :gutter="20" class="stats-row">
           <el-col :span="8">
             <el-card class="stat-card" :body-style="{ padding: '20px' }">
@@ -51,7 +62,6 @@
             </el-card>
           </el-col>
         </el-row>
-        <!-- 企业详细信息 -->
         <el-divider>企业详细信息</el-divider>
         <el-form :model="detail" label-width="100px" :disabled="!editMode">
           <el-form-item label="公司名称">
@@ -81,7 +91,6 @@
           <el-button v-else type="primary" @click="saveDetail">保存</el-button>
           <el-button v-if="editMode" @click="cancelEdit">取消</el-button>
         </div>
-        <!-- 快捷入口 -->
         <div class="quick-actions">
           <el-button type="primary" @click="goTo('jobs')">发布职位</el-button>
           <el-button @click="goTo('jobs')">管理职位</el-button>
@@ -96,8 +105,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElIcon } from 'element-plus'
-import { Camera } from '@element-plus/icons-vue' // 相机图标（上传标识）
+import { ElMessage, ElIcon, ElUpload } from 'element-plus' // 引入 ElUpload 组件
+import { Camera } from '@element-plus/icons-vue'
 import NavBar from '../../components/common/NavBar.vue'
 import Footer from '../../components/common/Footer.vue'
 import { fetchCompanyDashboard } from '@/api/company'
@@ -127,60 +136,67 @@ const detail = ref({})
 const userStore = useUserStore()
 const companyId = userStore.user?.companyId
 const userId = userStore.user?.id
-// 控制上传图标显示/隐藏
-const showAvatarUpload = ref(false)
-// 上传文件的input（用于手动触发）
-const uploadInput = ref(null)
+// 移除手动控制的 showAvatarUpload 和 uploadInput 变量
 
+// 加载头像（保持原有逻辑，使用 userId 获取）
 const loadAvatar = async () => {
-  const data = await getAvatar(userId)
-  // 创建临时URL[1,3](@ref)
-  const blobUrl = URL.createObjectURL(data)
-  avatarUrl.value = blobUrl
-  console.log(data)
-}
-
-// 打开上传对话框（手动触发input选择文件）
-const openUploadDialog = () => {
-  if (uploadInput.value) {
-    // 手动触发隐藏input的点击，仅触发一次文件选择
-    uploadInput.value.click()
+  try {
+    if (!userId) return
+    const data = await getAvatar(userId)
+    const blobUrl = URL.createObjectURL(data)
+    avatarUrl.value = blobUrl
+  } catch (error) {
+    console.error('获取头像失败:', error)
+    ElMessage.error('获取头像失败，请稍后重试')
   }
 }
 
-// 上传前校验
-const beforeAvatarUpload = (file) => {
-  const isJPGOrPNG = file.type === 'image/jpeg' || file.type === 'image/png'
-  const isLt2M = file.size / 1024 / 1024 < 2
+// 上传前校验（保持原有逻辑，返回 Promise 适配 el-upload）
+const beforeAvatarUpload =  (file) => {
+  return new Promise(async (resolve, reject) => {
+    const isJPGOrPNG = file.type === 'image/jpeg' || file.type === 'image/png'
+    const isLt2M = file.size / 1024 / 1024 < 2
 
-  if (!isJPGOrPNG) {
-    ElMessage.error('上传LOGO只能是 JPG 或 PNG 格式！')
-    return false
-  }
-  if (!isLt2M) {
-    ElMessage.error('上传LOGO大小不能超过 2MB！')
-    return false
-  }
+    if (!isJPGOrPNG) {
+      ElMessage.error('上传LOGO只能是 JPG 或 PNG 格式！')
+      reject(new Error('格式错误'))
+      return
+    }
+    if (!isLt2M) {
+      ElMessage.error('上传LOGO大小不能超过 2MB！')
+      reject(new Error('文件过大'))
+      return
+    }
 
-  // 校验通过后调用上传接口
-  const formData = new FormData()
-  formData.append('avatar', file)
-  uploadAvatar(userId, formData)
-      .then(res => {
-        const avatarFileName = res.data
-        // 更新头像数据（实时显示上传后的头像）
-        detail.value.logoUrl = avatarFileName
-        companyInfo.value.logoUrl = avatarFileName
-        ElMessage.success('头像上传成功')
-      })
-      .catch(err => {
-        ElMessage.error('头像上传失败')
-        console.error('上传失败详情：', err)
-      })
+    // 校验通过后手动调用上传接口
+    const formData = new FormData()
+    formData.append('avatar', file)
+    uploadAvatar(userId, formData).then((res) => {
+      ElMessage.success(res)
+      loadAvatar()
+    })
 
-  return false // 无需阻止默认行为（已脱离el-upload，仅处理逻辑）
+  })
 }
 
+// 头像上传成功回调
+const handleAvatarSuccess = (res) => {
+  const avatarFileName = res.data
+  // 更新相关数据
+  detail.value.logoUrl = avatarFileName
+  companyInfo.value.logoUrl = avatarFileName
+  ElMessage.success('头像上传成功')
+  // 刷新头像显示
+  loadAvatar()
+}
+
+// 头像上传失败回调
+const handleAvatarError = (err) => {
+  console.error('上传失败详情：', err)
+  ElMessage.error('头像上传失败')
+}
+
+// 以下逻辑保持不变
 const fetchDashboardData = async () => {
   if (!companyId) return
   loading.value = true
@@ -249,20 +265,7 @@ onMounted(() => {
   fetchDashboardData()
   fetchDetail()
   loadAvatar()
-  // 初始化隐藏的上传input
-  uploadInput.value = document.createElement('input')
-  uploadInput.value.type = 'file'
-  uploadInput.value.accept = 'image/jpeg,image/png'
-  uploadInput.value.style.display = 'none'
-  uploadInput.value.onchange = (e) => {
-    if (e.target.files[0]) {
-      // 调用校验和上传逻辑，仅执行一次
-      beforeAvatarUpload(e.target.files[0])
-      // 重置input值，允许重复选择同一文件，且不会触发二次选择
-      e.target.value = ''
-    }
-  }
-  document.body.appendChild(uploadInput.value)
+  // 移除手动创建 input 的逻辑，由 el-upload 接管
 })
 </script>
 
@@ -292,55 +295,58 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
-/* 头像容器：悬浮显示上传图标 */
+/* 核心改造：el-upload 头像容器样式 */
 .avatar-container {
   position: relative;
   cursor: pointer;
-  /* 保证头像和上传图标对齐 */
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* 核心修改：企业头像样式，取消灰色圆形，直接显示头像内容 */
+.avatar-uploader {
+  display: inline-block;
+}
+
+/* 企业头像样式（保持原有样式不变） */
 .company-avatar {
   width: 64px;
   height: 64px;
-  /* 可选：保留圆角（如需方形头像，删除border-radius即可） */
   border-radius: 4px;
-  /* 保证头像不变形，填充容器 */
   object-fit: cover;
-  /* 取消默认边框和背景，彻底移除灰色样式 */
   border: none;
   background: none;
 }
 
-/* 上传图标样式：悬浮时显示，覆盖在头像上 */
-.avatar-upload-trigger {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 64px;
-  height: 64px;
-  /* 可选：和头像圆角保持一致 */
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s;
-  /* 阻止事件冒泡，避免额外触发 */
-  pointer-events: auto;
+/* 上传遮罩：悬浮时显示（适配 el-upload） */
+.avatar-uploader:hover .company-avatar {
+  opacity: 0.7;
 }
 
-.avatar-container:hover .avatar-upload-trigger {
-  opacity: 1;
+.avatar-uploader:hover .avatar-upload-mask {
+  display: flex;
+}
+
+/* 上传图标/默认占位样式 */
+.avatar-upload-mask {
+  width: 64px;
+  height: 64px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #dcdfe6;
 }
 
 .upload-icon {
-  color: #fff;
+  color: #c0c4cc;
   font-size: 20px;
+}
+
+/* 无头像时默认显示上传占位 */
+.avatar-uploader:has(:not(.company-avatar)) .avatar-upload-mask {
+  display: flex;
 }
 
 .info-main {
