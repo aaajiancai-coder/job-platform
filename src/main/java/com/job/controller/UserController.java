@@ -38,11 +38,11 @@ public class UserController {
     /**
      * 获取头像
      */
-    @GetMapping("/avatar/{avatarImgName}")
+    @GetMapping("/{userId}/avatar")
     public ResponseEntity<byte[]> getAvatar(
-            @PathVariable String avatarImgName) throws IOException {
+            @PathVariable Long userId) throws IOException {
 
-        File avatarFile = userService.getUserAvatarFile(avatarImgName);
+        File avatarFile = userService.getUserAvatarFile(userId);
         if (!avatarFile.exists()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("头像不存在".getBytes());
         }

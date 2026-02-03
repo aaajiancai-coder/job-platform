@@ -25,6 +25,10 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   response => {
+    // 如果是二进制数据，直接返回
+    if (response.data instanceof Blob) {
+      return response.data
+    }
     if (response.status === 200 && response.data.code === 200) {
       return response.data.data
     } else {

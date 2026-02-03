@@ -16,11 +16,11 @@ export function getCurrentUser() {
 }
 
 //上传头像
-export function uploadAvatar(userId, file) {
-  return request.post(`/user/${userId}/avatar`, file, { headers: { 'Content-Type': 'multipart/form-data' } })
+export function uploadAvatar(userId, avatar) {
+  return request.post(`/user/${userId}/avatar`, avatar, { headers: { 'Content-Type': 'multipart/form-data' } })
 }
 
 //获取用户头像
-export function getAvatar(avatarImgName) {
-  return request.get(`/user/avatar/${avatarImgName}`)
+export function getAvatar(userId) {
+  return request.get(`/user/${userId}/avatar`, { responseType: 'blob' })
 }

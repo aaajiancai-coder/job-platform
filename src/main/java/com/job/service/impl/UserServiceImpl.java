@@ -85,7 +85,12 @@ public class UserServiceImpl implements UserService {
     /**
      * 获取用户头像文件
      */
-    public File getUserAvatarFile(String avatarImgName) {
+    public File getUserAvatarFile(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null || user.getAvatar() == null) {
+            return getDefaultAvatarFile();
+        }
+        String avatarImgName = user.getAvatar();
         File avatarFile = avatarFileUtil.getAvatarFile(avatarImgName);
         return avatarFile.exists() ? avatarFile : getDefaultAvatarFile();
     }

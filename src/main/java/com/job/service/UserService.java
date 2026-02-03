@@ -11,5 +11,5 @@ public interface UserService {
 
     boolean deleteUserAvatar(Long userId);
 
-    File getUserAvatarFile(String avatarImgName);
+    File getUserAvatarFile(Long userId);
 }

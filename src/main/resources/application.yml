@@ -101,4 +101,4 @@ upload:
     - ".png"
     - ".gif"
   avatar-sub-dir: "avatars/"
-  default-avatar: "default.jpg"
+  default-avatar: "default.png"
