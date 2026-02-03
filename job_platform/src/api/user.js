@@ -14,3 +14,13 @@ export function register({ username, password, email, phone, role }) {
 export function getCurrentUser() {
   return request.get('/auth/me')
 }
+
+//上传头像
+export function uploadAvatar(userId, file) {
+  return request.post(`/user/${userId}/avatar`, file, { headers: { 'Content-Type': 'multipart/form-data' } })
+}
+
+//获取用户头像
+export function getAvatar(avatarImgName) {
+  return request.get(`/user/avatar/${avatarImgName}`)
+}

@@ -7,9 +7,9 @@ import java.io.File;
 import java.io.IOException;
 
 public interface UserService {
-    boolean updateUserAvatar(Long userId, MultipartFile avatarFile, HttpServletRequest request) throws IOException;
+    boolean updateUserAvatar(Long userId, MultipartFile avatarFile) throws IOException;
 
-    boolean deleteUserAvatar(Long userId, HttpServletRequest request);
+    boolean deleteUserAvatar(Long userId);
 
-    File getUserAvatarFile(Long userId, HttpServletRequest request);
+    File getUserAvatarFile(String avatarImgName);
 }

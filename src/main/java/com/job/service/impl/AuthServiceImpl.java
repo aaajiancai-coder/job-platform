@@ -126,9 +126,7 @@ public class AuthServiceImpl implements AuthService {
     public ApiResult<?> getCurrentUser(Long userId) {
         User user = userMapper.selectById(userId);
         if (user != null) {
-            Map<String, Object> data = new HashMap<>();
-            data.put("user", convertToDTO(user));
-            return ApiResult.success("获取用户信息成功", data);
+            return ApiResult.success("获取用户信息成功", user);
         }
         return ApiResult.failed("用户不存在");
     }

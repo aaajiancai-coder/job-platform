@@ -29,9 +29,8 @@ public class UserController {
     @PostMapping("/{userId}/avatar")
     public ApiResult<String> uploadAvatar(
             @PathVariable Long userId,
-            @RequestParam("avatar") MultipartFile file,
-            HttpServletRequest request) throws IOException {
-        boolean result = userService.updateUserAvatar(userId, file, request);
+            @RequestParam("avatar") MultipartFile file) throws IOException {
+        boolean result = userService.updateUserAvatar(userId, file);
         return result ? ApiResult.success("头像上传成功") : ApiResult.error("头像上传失败");
 
     }
@@ -39,14 +38,13 @@ public class UserController {
     /**
      * 获取头像
      */
-    @GetMapping("/{userId}/avatar")
-    public ApiResult<byte[]> getAvatar(
-            @PathVariable Long userId,
-            HttpServletRequest request) throws IOException {
+    @GetMapping("/avatar/{avatarImgName}")
+    public ResponseEntity<byte[]> getAvatar(
+            @PathVariable String avatarImgName) throws IOException {
 
-        File avatarFile = userService.getUserAvatarFile(userId, request);
+        File avatarFile = userService.getUserAvatarFile(avatarImgName);
         if (!avatarFile.exists()) {
-            return ApiResult.error("头像不存在");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("头像不存在".getBytes());
         }
 
         byte[] fileContent = Files.readAllBytes(avatarFile.toPath());
@@ -57,15 +55,15 @@ public class UserController {
         headers.setContentType(MediaType.parseMediaType(contentType));
         headers.setContentDispositionFormData("inline", filename);
 
-        return ApiResult.success(fileContent);
+        return ResponseEntity.ok().headers(headers).body(fileContent);
     }
 
     /**
      * 删除头像
      */
     @DeleteMapping("/{userId}/avatar")
-    public ApiResult<String> deleteAvatar(@PathVariable Long userId, HttpServletRequest request) {
-        boolean success = userService.deleteUserAvatar(userId, request);
+    public ApiResult<String> deleteAvatar(@PathVariable Long userId) {
+        boolean success = userService.deleteUserAvatar(userId);
         if (success) {
             return ApiResult.success("头像删除成功");
         } else {

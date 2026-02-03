@@ -29,7 +29,7 @@ public class UserServiceImpl implements UserService {
      * 更新用户头像
      */
     @Transactional
-    public boolean updateUserAvatar(Long userId, MultipartFile avatarFile, HttpServletRequest request) throws IOException {
+    public boolean updateUserAvatar(Long userId, MultipartFile avatarFile) throws IOException {
         User user = getUserByRole(userId);
         if (user == null) {
             return false;
@@ -53,7 +53,7 @@ public class UserServiceImpl implements UserService {
      * 删除用户头像
      */
     @Transactional
-    public boolean deleteUserAvatar(Long userId, HttpServletRequest request) {
+    public boolean deleteUserAvatar(Long userId) {
         User user = getUserByRole(userId);
         if (user == null || user.getAvatar() == null) {
             return false;
@@ -74,7 +74,6 @@ public class UserServiceImpl implements UserService {
     public User getUserByRole(Long userId) {
         User user = null;
         if (SecurityUtils.isAdmin()) {
-            // 获取用户当前头像路径
             user = userMapper.selectById(userId);
         } else {
             // 非管理员，只能更新自己的头像
@@ -86,13 +85,8 @@ public class UserServiceImpl implements UserService {
     /**
      * 获取用户头像文件
      */
-    public File getUserAvatarFile(Long userId, HttpServletRequest request) {
-        User user = userMapper.selectById(userId);
-        if (user == null || user.getAvatar() == null) {
-            return getDefaultAvatarFile();
-        }
-
-        File avatarFile = avatarFileUtil.getAvatarFile(user.getAvatar());
+    public File getUserAvatarFile(String avatarImgName) {
+        File avatarFile = avatarFileUtil.getAvatarFile(avatarImgName);
         return avatarFile.exists() ? avatarFile : getDefaultAvatarFile();
     }
 
