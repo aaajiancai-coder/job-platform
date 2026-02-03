@@ -5,7 +5,29 @@
       <el-card class="dashboard-card" v-loading="loading">
         <div class="header-row">
           <div class="user-info">
-            <el-avatar :size="64" :src="user.avatar || defaultAvatar" />
+            <!-- 核心改造：替换 el-avatar 为 el-upload 实现可上传头像 -->
+            <div class="avatar-container">
+              <el-upload
+                  class="avatar-uploader"
+                  :action="''"
+              :show-file-list="false"
+              :before-upload="beforeAvatarUpload"
+              :on-success="handleAvatarSuccess"
+              :on-error="handleAvatarError"
+              accept="image/jpeg,image/png"
+              >
+              <!-- 头像显示：有头像显示当前头像，无头像显示默认头像 -->
+              <img
+                  class="user-avatar"
+                  :src="avatarUrl || defaultAvatar"
+                  alt="个人头像"
+              />
+              <!-- 上传遮罩：悬浮时显示上传图标 -->
+              <div class="avatar-upload-mask">
+                <el-icon class="upload-icon"><Camera /></el-icon>
+              </div>
+              </el-upload>
+            </div>
             <div class="info-main">
               <div class="user-name">{{ user.name }}</div>
               <div class="user-meta">{{ user.school }} · {{ user.major }}</div>
@@ -37,12 +59,12 @@
             <el-input v-model="detail.realName" />
           </el-form-item>
           <el-form-item label="性别">
-  <el-select v-model="detail.gender" placeholder="请选择">
-    <el-option label="男" value="male" />
-    <el-option label="女" value="female" />
-    <el-option label="其他" value="other" />
-  </el-select>
-</el-form-item>
+            <el-select v-model="detail.gender" placeholder="请选择">
+              <el-option label="男" value="male" />
+              <el-option label="女" value="female" />
+              <el-option label="其他" value="other" />
+            </el-select>
+          </el-form-item>
           <el-form-item label="出生日期">
             <el-date-picker v-model="detail.birthDate" type="date" placeholder="选择日期" style="width: 100%;" />
           </el-form-item>
@@ -81,16 +103,21 @@ import NavBar from '@/components/common/NavBar.vue'
 import Footer from '@/components/common/Footer.vue'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElIcon, ElUpload } from 'element-plus' // 引入 ElUpload 组件
+import { Camera } from '@element-plus/icons-vue' // 引入相机上传图标
 import { fetchStudentDashboard, fetchStudentDetail, updateStudentDetail } from '@/api/student'
 import { useUserStore } from '@/store/user'
 import { getUnreadNotificationCount } from '@/api/notification'
+// 引入头像上传/获取接口（和企业端一致，若接口路径不同请调整）
+import { uploadAvatar, getAvatar } from '@/api/user.js'
 
 const router = useRouter()
 const userStore = useUserStore()
 const studentId = userStore.user?.studentId
+const userId = userStore.user?.id // 获取当前用户ID，用于头像上传/获取
 const defaultAvatar = 'https://img2.baidu.com/it/u=1814323282,2189629152&fm=253&fmt=auto&app=138&f=JPEG?w=256&h=256'
 
+// 响应式变量
 const user = ref({
   name: '',
   school: '',
@@ -105,13 +132,16 @@ const stats = ref({
 const loading = ref(false)
 const editMode = ref(false)
 const detail = ref({})
+const avatarUrl = ref('') // 用于存储当前用户的头像 Blob 地址
 
+// 页面跳转逻辑（保持不变）
 function goTo(type) {
   if (type === 'resume') router.push('/student/resumes')
   else if (type === 'jobs') router.push('/jobs')
   else if (type === 'applications') router.push('/student/applications')
 }
 
+// 获取个人详细信息（保持不变）
 const fetchDetail = async () => {
   if (!studentId) return
   loading.value = true
@@ -125,6 +155,7 @@ const fetchDetail = async () => {
   }
 }
 
+// 保存个人详细信息（保持不变）
 const saveDetail = async () => {
   try {
     await updateStudentDetail(studentId, detail.value)
@@ -136,11 +167,72 @@ const saveDetail = async () => {
   }
 }
 
+// 取消编辑（保持不变）
 const cancelEdit = () => {
   editMode.value = false
   fetchDetail()
 }
 
+// 加载用户头像（和企业端逻辑一致，使用 userId 获取）
+const loadAvatar = async () => {
+  try {
+    if (!userId) return
+    const data = await getAvatar(userId)
+    const blobUrl = URL.createObjectURL(data)
+    avatarUrl.value = blobUrl
+  } catch (error) {
+    console.error('获取个人头像失败:', error)
+    // 失败时使用默认头像，不弹出错误提示（避免干扰用户）
+    avatarUrl.value = ''
+  }
+}
+
+// 头像上传前校验（格式+大小，返回 Promise 适配 el-upload）
+const beforeAvatarUpload = (file) => {
+  return new Promise((resolve, reject) => {
+    const isJPGOrPNG = file.type === 'image/jpeg' || file.type === 'image/png'
+    const isLt2M = file.size / 1024 / 1024 < 2
+
+    if (!isJPGOrPNG) {
+      ElMessage.error('上传头像只能是 JPG 或 PNG 格式！')
+      reject(new Error('格式错误'))
+      return
+    }
+    if (!isLt2M) {
+      ElMessage.error('上传头像大小不能超过 2MB！')
+      reject(new Error('文件过大'))
+      return
+    }
+
+    // 校验通过后手动调用上传接口
+    const formData = new FormData()
+    formData.append('avatar', file)
+    uploadAvatar(userId, formData)
+        .then(res => {
+          ElMessage.success(res || '头像上传成功')
+          loadAvatar()
+        })
+  })
+}
+
+// 头像上传成功回调
+const handleAvatarSuccess = (res) => {
+  const avatarFileName = res.data
+  // 更新用户头像相关数据（若需要同步到详情表单可补充）
+  user.value.avatar = avatarFileName
+  detail.value.avatar = avatarFileName
+  ElMessage.success('头像上传成功')
+  // 刷新头像显示
+  loadAvatar()
+}
+
+// 头像上传失败回调
+const handleAvatarError = (err) => {
+  console.error('头像上传失败详情：', err)
+  ElMessage.error('头像上传失败，请稍后重试')
+}
+
+// 页面挂载逻辑（补充加载头像）
 onMounted(async () => {
   loading.value = true
   try {
@@ -160,6 +252,8 @@ onMounted(async () => {
       offer: dashboard.offer
     }
     await fetchDetail()
+    // 加载用户头像（优先级高于接口返回的静态头像）
+    await loadAvatar()
   } finally {
     loading.value = false
   }
@@ -188,6 +282,52 @@ onMounted(async () => {
   display: flex;
   align-items: center;
 }
+
+/* 核心改造：头像上传相关样式 */
+.avatar-container {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatar-uploader {
+  display: inline-block;
+}
+.user-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%; /* 保持圆形头像样式，和原有 el-avatar 一致 */
+  object-fit: cover;
+  border: none;
+  background: none;
+  transition: opacity 0.3s ease;
+}
+/* 上传遮罩：悬浮时显示 */
+.avatar-upload-mask {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.avatar-uploader:hover .user-avatar {
+  opacity: 0.7;
+}
+.avatar-uploader:hover .avatar-upload-mask {
+  display: flex;
+}
+.upload-icon {
+  color: #fff;
+  font-size: 20px;
+}
+
+/* 原有样式保持不变 */
 .info-main {
   margin-left: 20px;
 }
