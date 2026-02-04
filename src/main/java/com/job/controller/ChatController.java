@@ -44,16 +44,16 @@ public class ChatController {
 
 
     @RequestMapping(value = "/smart", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> chat(@RequestParam("prompt") String prompt,
+    public Flux<ServerSentEvent<String>> chat(@RequestParam("prompt") String prompt,
                              @RequestParam("userId") String userId) {
         inSqlChatHistoryRepository.save(ChatType.CHAT.getValue(), userId);
         return jobPlatformChatClient.prompt()
                 .user(prompt)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
                 .stream()
-                .content();
+                .content()
+                .map(content -> ServerSentEvent.builder(content).build());
     }
-
 
 
 
@@ -65,10 +65,10 @@ public class ChatController {
      * @return SSE流响应
      */
     @GetMapping(value = "database", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> chatStreamWithDatabase(@RequestParam String prompt,
+    public Flux<ServerSentEvent<String>> chatStreamWithDatabase(@RequestParam String prompt,
                                                @RequestParam String userId) {
         if ("guest".equals(userId)) {
-            return Flux.just("data:抱歉，游客身份暂无知识检索权限，请登录后再试哦！\n\n");
+            return Flux.just(ServerSentEvent.builder("抱歉，游客身份暂无知识检索权限，请登录后再试哦！").build());
         }
         // question_answer_context是一个占位符，会替换成向量数据库中查询到的文档。QuestionAnswerAdvisor会替换。
         String promptWithContext = """
@@ -77,7 +77,7 @@ public class ChatController {
                 ---------------------
                 {question_answer_context}
                 ---------------------
-                给定的上下文和提供的历史信息，而不是事先的知识，回复用户的意见。如果答案不在上下文中，告诉用户你不能回答这个问题。
+                严格基于给定的上下文，而不是事先的知识，回复用户的意见，必须原样输出与用户问题匹配的上下文信息。如果答案不在上下文中，告诉用户你不能回答这个问题。
                 """;
         inSqlChatHistoryRepository.save(ChatType.CHAT.getValue(), userId);
         return vectorChatClient.prompt()
@@ -87,6 +87,7 @@ public class ChatController {
                         .searchRequest(SearchRequest.builder().similarityThreshold(0.8d).topK(1).build())
                         .promptTemplate(new PromptTemplate(promptWithContext)).build())
                 .stream()
-                .content();
+                .content()
+                .map(content -> ServerSentEvent.builder(content).build());
     }
 }
