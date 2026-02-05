@@ -15,6 +15,7 @@
     "echarts": "^5.6.0",
     "element-plus": "2.3.4",
     "marked": "^15.0.12",
+    "md-editor-v3": "^6.3.1",
     "pinia": "^3.0.2",
     "vue": "^3.5.16",
     "vue-router": "^4.2.5"

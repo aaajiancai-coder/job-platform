@@ -3,6 +3,8 @@ import {ref, reactive, onMounted, nextTick, computed} from 'vue'
 import {useUserStore} from '@/store/user'
 import {ElMessage} from "element-plus";
 import {fetchEventSource} from "@microsoft/fetch-event-source";
+import { MdPreview } from 'md-editor-v3';
+import 'md-editor-v3/lib/preview.css';
 
 const userStore = useUserStore()
 const isChatOpen = ref(false)
@@ -129,13 +131,14 @@ const chatStream = (prompt, userId, mode = 'smart') => {
     // 正常接收流式数据
     onmessage(event) {
       console.log('接收流式数据：', event);
-      messagePlaceholder.value += event.data;
+      messagePlaceholder.value += event.data.replace(/#+/g, event.data + " ")
       scrollToBottom()
     },
     // 连接正常关闭
     onclose() {
       console.log("SSE 连接正常关闭");
       addChatMessage('bot', messagePlaceholder.value);
+      console.log(messages.value)
       messagePlaceholder.value = '';
       isTyping.value = false;
     },
@@ -308,7 +311,8 @@ onMounted(() => {
                   <i :class="['fas', msg.role === 'user' ? 'fa-user' : 'fa-robot']"></i>
                 </div>
                 <div class="message-bubble">
-                  <div class="message-content">{{ msg.content }}</div>
+<!--                  <div class="message-content">{{ msg.content }}</div>-->
+                  <MdPreview style="padding: 0; background-color: transparent;" :model-value="msg.content" />
                   <span class="model-indicator" v-if="msg.role === 'bot' && msg.mode">
                     {{ msg.mode === 'smart' ? '功能对话' : '知识检索' }}
                   </span>
@@ -320,7 +324,8 @@ onMounted(() => {
                   <i :class="['fas', 'fa-robot']" style="color: #66b1ff"></i>
                 </div>
                 <div class="message-bubble">
-                  <div class="message-content">{{ messagePlaceholder }}</div>
+<!--                  <div class="message-content">{{ messagePlaceholder }}</div>-->
+                  <MdPreview :model-value="messagePlaceholder" />
                 </div>
             </div>
 
@@ -363,6 +368,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* 深度选择器穿透组件隔离（Vue3 用 :deep()，Vue2 用 ::v-deep） */
+
 .chat-floating-ball {
   position: fixed;
   width: 60px;
@@ -390,9 +397,9 @@ onMounted(() => {
   right: -50vw;
   top: 50%;
   transform: translateY(-50%) scale(0.9);
-  width: 45vw;
+  width: 70vw;
   min-width: 380px;
-  height: 600px;
+  height: 700px;
   background: white;
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
@@ -511,11 +518,11 @@ onMounted(() => {
 }
 
 .message-bubble {
-  max-width: 70%;
+  max-width: 90%;
   padding: 10px 15px;
   border-radius: 18px;
   position: relative;
-  line-height: 1.5;
+  line-height: 1px;
   word-break: break-word;
   white-space: pre-wrap; /* 关键：保留换行和空格 */
 }
@@ -694,5 +701,14 @@ onMounted(() => {
 .chat-messages::-webkit-scrollbar-thumb {
   background: #c1c1c1;
   border-radius: 3px;
+}
+
+:deep(.markdown-preview-wrapper) {
+  /* 基础容器样式 */
+  width: 100%;
+  font-size: 1px; /* 适配聊天气泡的字体大小 */
+  line-height: 1.6; /* 行高，提升可读性 */
+  color: #333; /* 文字颜色 */
+  padding: 4px 0; /* 内边距，适配气泡 */
 }
 </style>
