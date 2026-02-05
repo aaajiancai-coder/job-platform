@@ -368,7 +368,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 深度选择器穿透组件隔离（Vue3 用 :deep()，Vue2 用 ::v-deep） */
+/* 使用深度选择器覆盖默认样式 */
+:deep(.md-editor-preview) table {
+  line-height: 1.2;
+}
+
+:deep(.md-editor-preview) {
+  line-height: 0.2;
+}
+
 
 .chat-floating-ball {
   position: fixed;
@@ -522,7 +530,7 @@ onMounted(() => {
   padding: 10px 15px;
   border-radius: 18px;
   position: relative;
-  line-height: 1px;
+  line-height: 10px;
   word-break: break-word;
   white-space: pre-wrap; /* 关键：保留换行和空格 */
 }
@@ -703,12 +711,4 @@ onMounted(() => {
   border-radius: 3px;
 }
 
-:deep(.markdown-preview-wrapper) {
-  /* 基础容器样式 */
-  width: 100%;
-  font-size: 1px; /* 适配聊天气泡的字体大小 */
-  line-height: 1.6; /* 行高，提升可读性 */
-  color: #333; /* 文字颜色 */
-  padding: 4px 0; /* 内边距，适配气泡 */
-}
 </style>
