@@ -45,10 +45,7 @@ const closeChat = () => {
 
 const switchModel = (model) => {
   currentModel.value = model
-  messages.push({
-    role: 'system',
-    content: `已切换到${model === 'smart' ? '功能对话' : '知识检索'}模式`
-  })
+  addChatMessage('system', `已切换到${model === 'smart' ? '功能对话' : '知识检索'}模式`)
   scrollToBottom()
 }
 
