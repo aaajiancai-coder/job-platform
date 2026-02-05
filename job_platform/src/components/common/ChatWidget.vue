@@ -1,13 +1,14 @@
 <script setup>
 import {ref, reactive, onMounted, nextTick, computed} from 'vue'
 import {useUserStore} from '@/store/user'
-import {chatStream} from '@/api/ai'
+import {ElMessage} from "element-plus";
+import {fetchEventSource} from "@microsoft/fetch-event-source";
 
 const userStore = useUserStore()
 const isChatOpen = ref(false)
 const currentModel = ref('smart') // 'smart' for functionCall, 'database' for vectorSearch
 const inputMsg = ref('')
-const messages = reactive([
+const messages = ref([
   {
     role: 'bot',
     content: '您好！我是校园招聘智能助手，可以回答您关于职位、公司、申请流程等问题。请问有什么可以帮助您的？',
@@ -58,124 +59,104 @@ const scrollToBottom = async () => {
   }
 }
 
-const sendMessage = async () => {
-  if (!inputMsg.value.trim() || isTyping.value) return
+/**占位符 */
+const messagePlaceholder = ref('')
 
-  const userPrompt = inputMsg.value.trim()
-  const mode = currentModel.value
-  const userId = userStore.user?.id || 'guest'
+// 添加聊天信息
+const addChatMessage = (role, content) => {
+  messages.value.push({ role, content, mode: currentModel.value});
+};
 
-  messages.push({
-    role: 'user',
-    content: userPrompt
-  })
-  inputMsg.value = ''
-  isTyping.value = true
-  scrollToBottom()
-
-  try {
-    const response = await chatStream(userPrompt, userId, mode)
-    if (!response.ok) {
-      // 处理错误响应 如果是403
-      if (response.status === 403) {
-        throw new Error('Unauthorized')
-      } else {
-        throw new Error('服务器错误')
-      }
-      return
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let botMsg = reactive({
-      role: 'bot',
-      content: '',
-      mode: mode
-    })
-    messages.push(botMsg)
-
-    // 打字机效果逻辑
-    let typewriterQueue = []
-    let isTypewriting = false
-
-    const startTypewriter = () => {
-      if (isTypewriting) return
-      isTypewriting = true
-      
-      const type = () => {
-        if (typewriterQueue.length > 0) {
-          const char = typewriterQueue.shift()
-          botMsg.content += char
-          scrollToBottom()
-          setTimeout(type, 20) // 控制打字速度，20ms 一个字符
-        } else {
-          isTypewriting = false
-        }
-      }
-      type()
-    }
-
-    try {
-      while (true) {
-        const {done, value} = await reader.read()
-        if (done) break
-
-        let chunk = decoder.decode(value, {stream: true})
-
-        // 处理 SSE 格式 (data: chunk\n\n)
-        const lines = chunk.split('\n')
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            // 提取数据内容
-            let content = line.substring(5)
-            // 如果 data: 后面有空格则去掉
-            if (content.startsWith(' ')) {
-              content = content.substring(1)
-            }
-            
-            if (content) {
-              // 将内容拆分为字符存入队列
-              typewriterQueue.push(...content.split(''))
-              startTypewriter()
-            }
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock()
-    }
-
-    isTyping.value = false
-
-    // 如果没有任何内容返回，显示错误
-    if (!botMsg.content) {
-      botMsg.content = '智能助手暂时无法回复，请检查网络或稍后再试。'
-    }
-  } catch (error) {
-    // console.error(error.message)
-    //如果是403需要提示用户登录
-    isTyping.value = false
-    if (error.message === 'Unauthorized') {
-      messages.push({
-        role: 'bot',
-        content: '您尚未登录，请先登录。',
-        mode: mode
-      })
-      return
-    }
-    messages.push({
-      role: 'bot',
-      content: '抱歉，服务出现了一些问题，请稍后再试。',
-      mode: mode
-    })
-
+// 发送信息
+const sendChatMessage = () => {
+  const userId = userStore.user? userStore.user.id : null
+  if (!userId) {
+    ElMessage.error('用户未登录')
+    return
   }
-}
+  const inputContent = inputMsg.value.trim();
+  if (!inputContent) return ElMessage.error('请输入要发送的消息');
 
-const renderMarkdown = (content) => {
-  // 简单处理换行符，如果没有 marked 库的话
-  return content.replace(/\n/g, '<br>')
-}
+  isTyping.value = true;
+  addChatMessage('user', inputContent);
+  inputMsg.value = '';
+
+  setTimeout(async () => {
+    await chatStream(inputContent, userId, currentModel.value)
+  }, 2000);
+};
+
+
+const chatStream = (prompt, userId, mode = 'smart') => {
+  const token = sessionStorage.getItem('token');
+  const encodedPrompt = encodeURIComponent(prompt);
+  const url = `/api/ai/${mode}?prompt=${encodedPrompt}&userId=${userId}`;
+  const ctrl = new AbortController();
+
+  return fetchEventSource(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': token ? `Bearer ${token}` : '',
+      'Content-Type': 'application/json'
+    },
+    retry: 0, // 关闭自动重试
+    openWhenHidden: false,
+    // 核心：自定义 onopen，优先校验状态码
+    onopen(response) {
+      // 1. 优先判断响应状态码
+      if (response.status === 403 || response.status === 401) {
+        // 403/401 均提示登录，主动取消连接
+        ctrl.abort();
+        isTyping.value = false;
+        addChatMessage('bot', '请登录后使用对话功能。')
+        ElMessage.error('登录状态已过期，请重新登录');
+        // 跳转到登录页（可选）
+        // router.push('/login');
+        throw new Error('未登录或权限不足'); // 终止流程
+      }
+
+      // 2. 再校验 Content-Type（兼容正常 SSE 场景）
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('text/event-stream')) {
+        // 非 403/401 的 Content-Type 错误，提示接口异常
+        ctrl.abort();
+        isTyping.value = false;
+        addChatMessage('bot', '接口异常，请稍后再试');
+        ElMessage.error('接口响应格式错误，请联系管理员');
+        throw new Error(`Expected content-type to be text/event-stream, Actual: ${contentType}`);
+      }
+
+      // 3. 校验通过，继续处理 SSE 连接（调用库默认的 onopen）
+      return true;
+    },
+    // 正常接收流式数据
+    onmessage(event) {
+      console.log('接收流式数据：', event);
+      messagePlaceholder.value += event.data;
+    },
+    // 连接正常关闭
+    onclose() {
+      console.log("SSE 连接正常关闭");
+      addChatMessage('bot', messagePlaceholder.value);
+      messagePlaceholder.value = '';
+      isTyping.value = false;
+    },
+    // 错误兜底（捕获其他异常）
+    onerror(err) {
+      console.error('SSE 连接错误：', err);
+      // 避免重复提示（onopen 已处理 403/401）
+      if (!err.message.includes('未登录') && !err.message.includes('权限不足')) {
+        ElMessage.error('AI 回复失败，请稍后再试');
+      }
+      ctrl.abort();
+      isTyping.value = false;
+      messagePlaceholder.value = '';
+      throw err;
+    },
+    signal: ctrl.signal
+  });
+};
+
 
 // 拖拽逻辑
 let dragStartX, dragStartY, initialX, initialY
@@ -336,6 +317,16 @@ onMounted(() => {
                 </div>
               </template>
             </div>
+            <div :class="['message', 'bot']" v-if="isTyping">
+                <div class="message-avatar" >
+                  <i :class="['fas', 'fa-robot']" style="color: #66b1ff"></i>
+                </div>
+                <div class="message-bubble">
+                  <div class="message-content">{{ messagePlaceholder }}</div>
+                </div>
+            </div>
+
+
 
             <div class="typing-indicator" v-if="isTyping">
               <div>智能助手输入中</div>
@@ -352,7 +343,7 @@ onMounted(() => {
                 class="chat-input"
                 v-model="inputMsg"
                 placeholder="请输入您的问题..."
-                @keydown.enter.prevent="sendMessage"
+                @keydown.enter.prevent="sendChatMessage"
             ></textarea>
             <div class="chat-actions">
               <div class="input-icons">
@@ -361,7 +352,7 @@ onMounted(() => {
               </div>
               <button
                   class="send-button"
-                  @click="sendMessage"
+                  @click="sendChatMessage"
                   :disabled="!inputMsg.trim() || isTyping"
               >发送
               </button>

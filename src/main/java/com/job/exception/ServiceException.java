@@ -1,4 +1,4 @@
-package com.job.common.exception;
+package com.job.exception;
 
 public class ServiceException extends RuntimeException {
     public ServiceException(String message) {

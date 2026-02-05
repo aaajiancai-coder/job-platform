@@ -3,6 +3,7 @@ package com.job.config;
 import com.job.security.CustomUserDetailsService;
 import com.job.security.JwtAuthenticationFilter;
 import com.job.security.JwtTokenProvider;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,11 +43,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .requestMatchers("/auth/register", "/auth/login", "/common/**").permitAll()
+                        .requestMatchers("/ai/**").authenticated()
                         .requestMatchers("/company/{id}").authenticated() // 注意：路径变量匹配需谨慎，见下方说明
                         .requestMatchers("/jobs/{id}").authenticated()
                         .requestMatchers("/notification/**").authenticated()
-                        .requestMatchers("/ai/**").authenticated()
                         .requestMatchers("/user/**").authenticated()
                         .requestMatchers("/admin/**").hasRole("admin")
                         .requestMatchers("/company/**").hasRole("company")

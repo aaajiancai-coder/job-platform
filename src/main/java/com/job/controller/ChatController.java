@@ -3,7 +3,13 @@ package com.job.controller;
 import com.job.ai.ChatHistoryRepository;
 import com.job.ai.ChatType;
 import com.job.ai.CompanyTools;
+import com.job.constants.ExceptionConstants;
+import com.job.exception.BusinessException;
+import com.job.exception.GlobalExceptionHandler;
+import com.job.security.UserPrincipal;
+import com.job.utils.SecurityUtils;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -29,6 +35,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/ai")
+@Slf4j
 public class ChatController {
 
     @Autowired
@@ -43,18 +50,17 @@ public class ChatController {
     private ChatHistoryRepository inSqlChatHistoryRepository;
 
 
-    @RequestMapping(value = "/smart", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> chat(@RequestParam("prompt") String prompt,
-                             @RequestParam("userId") String userId) {
-        inSqlChatHistoryRepository.save(ChatType.CHAT.getValue(), userId);
-        return jobPlatformChatClient.prompt()
-                .user(prompt)
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
-                .stream()
-                .content()
-                .map(content -> ServerSentEvent.builder(content).build());
-    }
-
+@RequestMapping(value = "/smart", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+public Flux<ServerSentEvent<String>> chat(@RequestParam("prompt") String prompt,
+                         @RequestParam("userId") Long userId) {
+    inSqlChatHistoryRepository.save(ChatType.CHAT.getValue(), String.valueOf(userId));
+    return jobPlatformChatClient.prompt()
+            .user(prompt)
+            .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))
+            .stream()
+            .content()
+            .map(content -> ServerSentEvent.builder(content).build());
+}
 
 
 
@@ -66,10 +72,7 @@ public class ChatController {
      */
     @GetMapping(value = "database", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> chatStreamWithDatabase(@RequestParam String prompt,
-                                               @RequestParam String userId) {
-        if ("guest".equals(userId)) {
-            return Flux.just(ServerSentEvent.builder("抱歉，游客身份暂无知识检索权限，请登录后再试哦！").build());
-        }
+                                               @RequestParam Long userId) {
         // question_answer_context是一个占位符，会替换成向量数据库中查询到的文档。QuestionAnswerAdvisor会替换。
         String promptWithContext = """
                 {query}
@@ -79,7 +82,7 @@ public class ChatController {
                 ---------------------
                 严格基于给定的上下文，而不是事先的知识，回复用户的意见，必须原样输出与用户问题匹配的上下文信息。如果答案不在上下文中，告诉用户你不能回答这个问题。
                 """;
-        inSqlChatHistoryRepository.save(ChatType.CHAT.getValue(), userId);
+        inSqlChatHistoryRepository.save(ChatType.CHAT.getValue(), String.valueOf(userId));
         return vectorChatClient.prompt()
                 .user(prompt)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, userId))

@@ -21,7 +21,8 @@ export const chatStream = (prompt, userId, mode = 'smart') => {
   return fetch(url, {
     method: 'GET',
     headers: {
-      'Authorization': token ? `Bearer ${token}` : ''
+      'Authorization': token ? `Bearer ${token}` : '',
+      'Content-Type': 'application/json'
     }
   })
 }

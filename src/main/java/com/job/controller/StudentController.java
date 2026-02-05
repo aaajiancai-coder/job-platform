@@ -14,8 +14,8 @@ import com.job.dto.ApplyRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.job.security.UserPrincipal;
-import com.job.common.exception.ServiceException;
-import com.job.common.exception.UnauthorizedException;
+import com.job.exception.ServiceException;
+import com.job.exception.UnauthorizedException;
 
 @RestController
 @RequestMapping("/student")
