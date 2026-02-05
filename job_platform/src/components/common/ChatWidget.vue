@@ -130,6 +130,7 @@ const chatStream = (prompt, userId, mode = 'smart') => {
     onmessage(event) {
       console.log('接收流式数据：', event);
       messagePlaceholder.value += event.data;
+      scrollToBottom()
     },
     // 连接正常关闭
     onclose() {
