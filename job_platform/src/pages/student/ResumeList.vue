@@ -37,7 +37,7 @@
           <el-form-item label="简历名称">
             <el-input v-model="editForm.title" />
           </el-form-item>
-          <el-form-item label="内容">
+          <el-form-item label="求职意向">
             <el-input type="textarea" v-model="editForm.content" />
           </el-form-item>
         </el-form>

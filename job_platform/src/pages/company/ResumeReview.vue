@@ -60,6 +60,15 @@
         <!-- 简历详情弹窗 -->
         <el-dialog title="简历详情" v-model="showDetail" width="700px">
           <div v-if="detailData">
+            <div class="avatar-container">
+                <!-- 头像显示：如果已有头像显示 avatarUrl，否则显示默认占位（可选） -->
+                <img
+                    v-if="avatarUrl"
+                    class="company-avatar"
+                    :src="avatarUrl"
+                    alt="企业头像"
+                />
+            </div>
             <h4>投递信息</h4>
             <el-table :data="[detailData.application]" border style="margin-bottom: 20px">
               <el-table-column prop="status" label="状态" />
@@ -95,7 +104,7 @@
               </el-table-column>
             </el-table>
             <div v-if="detailData.resume && detailData.resume.content" style="margin-top: 16px;">
-              <h4>简历内容</h4>
+              <h4>求职意向</h4>
               <el-card shadow="never">{{ detailData.resume.content }}</el-card>
             </div>
           </div>
@@ -113,8 +122,10 @@ import Footer from '../../components/common/Footer.vue'
 import { fetchCompanyResumes, updateResumeStatus, fetchApplicationDetail, sendOfferToStudent } from '@/api/resume'
 import { fetchCompanyJobs } from '@/api/job'
 import { useUserStore } from '@/store/user'
-import { ElMessage } from 'element-plus'
+import {getAvatar} from '@/api/user'
 import dayjs from 'dayjs'
+import {ElMessage} from "element-plus";
+
 
 const userStore = useUserStore()
 const companyId = userStore.user?.companyId
@@ -129,6 +140,8 @@ const loading = ref(false)
 const showDetail = ref(false)
 const currentResume = ref(null)
 const detailData = ref(null)
+const avatarUrl = ref(null)
+
 
 function statusType(status) {
   if (status === '已读') return 'info'
@@ -145,6 +158,8 @@ async function viewResume(row) {
     const res = await fetchApplicationDetail(row.id)
     detailData.value = res
     showDetail.value = true
+    const url = URL.createObjectURL(await getAvatar(res.student.userId))
+    avatarUrl.value = url
   } catch {
     ElMessage.error('获取详情失败')
   }
@@ -154,7 +169,7 @@ async function setStatus(row, status) {
   try {
     await updateResumeStatus(row.id, status)
     ElMessage.success('状态更新成功')
-    loadResumes()
+    await loadResumes()
   } catch {
     ElMessage.error('状态更新失败')
   }
@@ -211,6 +226,14 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.company-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: none;
+  background: none;
+}
 .resume-review-container {
   padding: 30px 0;
   background: #f5f7fa;
