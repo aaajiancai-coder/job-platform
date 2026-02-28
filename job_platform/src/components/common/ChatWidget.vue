@@ -69,16 +69,20 @@ const addChatMessage = (role, content) => {
 // 发送信息
 const sendChatMessage = () => {
   const userId = userStore.user? userStore.user.id : null
-  if (!userId) {
-    ElMessage.error('用户未登录')
-    return
-  }
+
   const inputContent = inputMsg.value.trim();
   if (!inputContent) return ElMessage.error('请输入要发送的消息');
 
   isTyping.value = true;
   addChatMessage('user', inputContent);
   inputMsg.value = '';
+
+  if (!userId) {
+    addChatMessage('bot', '请登录后使用对话功能。')
+    ElMessage.error('用户未登录')
+    isTyping.value = false
+    return
+  }
 
   setTimeout(async () => {
     await chatStream(inputContent, userId, currentModel.value)
